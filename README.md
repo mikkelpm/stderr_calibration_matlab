@@ -6,6 +6,12 @@ Installation instructions can be found here
 http://cvxr.com/cvx/doc/install.html
 
 
+TO-DO
+-----
+- Double check overid testing, where rejection rate for wcopt seems off
+- Add nonlinear example to testing code
+
+
 Directories and Top-Level Programs
 ----------------------------------
 Main/           Code for solving for the worst-case optimal variance
