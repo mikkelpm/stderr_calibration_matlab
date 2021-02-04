@@ -24,4 +24,9 @@ Test_SDP(0)   % Do not do speed tests
 % testing a hypothesis about a single parameter using the quantile
 % regression approach approved in the paper. Do this for multiple G
 % matrices.
-Test_ComputeWorstCaseOptimal_Single
+Test_ComputeWorstCaseOptW_Single
+
+
+% Test the code for hypothesis testing of a single hypothesis and for
+% implementing overid test
+Test_HTest_Single_Overid

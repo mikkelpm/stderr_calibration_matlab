@@ -2,6 +2,17 @@
 % about a single parameter in classical minimum distance problem, using
 % quantile regression approach outlined in paper.
 %
+% V               Var matrix with NaNs off diagonal reflectin unknown elements.
+%
+% G               Consistent estimator for G matrix
+%
+% lambda          lambda giving the linear combination lambda*theta that
+%                 we want to test a hypothesis about.
+%
+% zero_thresh     Ensuring that Gperp grabs the right eigenvectors, i.e.
+%                 does not grab eigenvectors with nonzero-but-near-zero
+%                 eigenvalues (arising from numerical precision issues)
+%
 function [W, stderr, Vout, x, z] = ComputeWorstCaseOptimal_Single(V, G, lambda, zero_thresh)
 
   % Differs from Matlab's sign fcn in that this has sign(0) = 1, rather

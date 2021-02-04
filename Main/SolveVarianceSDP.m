@@ -14,7 +14,7 @@
 %     be used as constraints, so Vtilde(m,n)=V(m,n) by construction if
 %     V(m,n) =/= NaN
 %
-% A   Weights on the elements of V
+% A   Weights on the elements of V. If maximizing a'Va, set A = aa'
 %
 function [Vtilde, cvx_optval, cvx_status] = SolveVarianceSDP(A, V)
 

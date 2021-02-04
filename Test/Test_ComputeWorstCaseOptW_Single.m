@@ -1,5 +1,5 @@
 %% Compute worst case optimal W given V for different G matrices and parameters of interest
-function [] = Test_ComputeWorstCaseOptimal_Single()
+function [] = Test_ComputeWorstCaseOptW_Single()
 
   % Parameters of problem
   p    = 3; % Number of moments
@@ -38,7 +38,7 @@ function [] = Test_ComputeWorstCaseOptimal_Single()
 
     % Compute worst-case optimal for each parameter of interest
     for n = 1:k
-      [W(:,:,n,d), stderr(n,d), Vout(:,:,n,d), x(:,n,d), z(:,n,d)] = ComputeWorstCaseOptimal_Single(V, G, I(:,n), 10e-8);
+      [W(:,:,n,d), stderr(n,d), Vout(:,:,n,d), x(:,n,d), z(:,n,d)] = ComputeWorstCaseOptW_Single(V, G, I(:,n), 10e-8);
     end
   end
 
