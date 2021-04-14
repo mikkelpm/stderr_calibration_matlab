@@ -45,8 +45,8 @@ function [G] = FiniteDiff(h, theta)
         if isnan(max(abspctchg(:)))
           error('Error: max abs pct chg = NaN')
         end
-        fprintf('\nNorm = %f\n', max(abspctchg(:)))
-        fprintf('\nShrinking to delta = %f\n', 0.1*delta)
+%         fprintf('\nNorm = %f\n', max(abspctchg(:)))
+%         fprintf('\nShrinking to delta = %f\n', 0.1*delta)
       end
       maxabspctchg_old = maxabspctchg;
     end

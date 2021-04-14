@@ -67,6 +67,8 @@ function [res, res_onestep] = HTest_Single_WorstCaseOptW_Step2(V, Ghat0, GFcn, l
     res_onestep.theta       = getOnestep(h_thetahat, W_wcopt, Ghat0, thetahat, muhat);
     res_onestep             = HTest_Single_GeneralW_InferenceInfo(res_onestep.theta, W_wcopt, V_wcopt, h, lambda, Nobs, GFcn);
     res_onestep.lcomb_check = lambda'*thetahat - x_check'*(h_thetahat-muhat);
+    res_onestep.stderr_check= stderr_check;
+    res_onestep.x_check     = x_check;
 
   else
     res_onestep = [];
