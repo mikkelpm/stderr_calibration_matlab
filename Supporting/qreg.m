@@ -15,7 +15,7 @@ lb=[zeros(n,1);zeros(n,1);-inf*ones(m,1)];
 ub=inf*ones(m+2*n,1);
 
 % Solve the linear programme
-[bhat,~,~]=linprog(f,[],[],Aeq,beq,lb,ub);
+[bhat,~,~]=linprog(f,[],[],Aeq,beq,lb,ub,optimoptions('linprog', 'Display', 'off'));
 
 % Pick out betas from (u,v,beta)-vector.
 bhat=bhat(end-m+1:end);
