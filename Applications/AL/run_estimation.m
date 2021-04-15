@@ -9,7 +9,7 @@ addpath('../../Supporting');
 %% Settings
 
 % Data
-dat_file = 'wber.csv';  % CSV file with prices by store, week, and UPC
+dat_file = 'wber.csv';  % CSV file with prices by store, week, and UPC (download from: https://www.chicagobooth.edu/research/kilts/datasets/dominicks)
 select_store = 122;     % Single store ID to keep for the data analysis
 drop_quantile = 0.99;   % Drop absolute price changes above this quantile
 
