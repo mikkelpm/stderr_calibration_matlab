@@ -5,65 +5,62 @@ function estim = estimate_model(mu_hat, V_hat)
     
     estim = struct;
     sigma_hat = sqrt(diag(V_hat)); % Marginal standard errors of moments
+    p = length(mu_hat);
     
 
-    %% Estimate model: just-identified moments
+    %% Estimate model: just-identified moments (first three)
+    
+    % Full information
+    W_justid = blkdiag(eye(3),zeros(p-3,p-3)); % Weight matrix for just-identified estimation
+    res_justid_fullinfo = WorstCaseSE(@moment_function, mu_hat, @(mu,W) param_closed_form(mu(1:3)), ...
+                                      'W', W_justid, 'V', V_hat, 'opt', false);
+    estim.justid.theta_hat = res_justid_fullinfo.theta; % Estimates
+    estim.justid.fullinfo_se = res_justid_fullinfo.lambda_theta_se; % SE
 
-    % Just-identified estimates, using only three moments
-    estim.justid.theta_hat = param_closed_form(mu_hat(1:3)); % Closed-form expression
+    % Assuming independence
+    res_justid_indep = WorstCaseSE(@moment_function, mu_hat, @(mu,W) param_closed_form(mu(1:3)), ...
+                                   'W', W_justid, 'V', diag(diag(V_hat)), 'opt', false);
+    estim.justid.indep_se = res_justid_indep.lambda_theta_se; % SE
+    
+    % Worst case
+    res_justid_wc = WorstCaseSE(@moment_function, mu_hat, @(mu,W) param_closed_form(mu(1:3)), ...
+                                'sigma', sigma_hat, 'W', W_justid, 'opt', false);
+    estim.justid.wc_se = res_justid_wc.lambda_theta_se; % SE
 
-    % Standard errors, actual, under independence, and worst case
-    jacob_justid = FiniteDiff(@(x) param_closed_form(x), mu_hat(1:3)'); % Jacobian in closed-form expression for hat{theta}
-    estim.justid.se = sqrt(diag(jacob_justid*V_hat(1:3,1:3)*jacob_justid')); % Actual SE
-    estim.justid.indep_se = sqrt(diag(jacob_justid*diag(sigma_hat(1:3).^2)*jacob_justid')); % SE if independent
-    estim.justid.wcse = abs(jacob_justid)*sigma_hat(1:3); % Worst-case SE
 
+    %% Test of over-identifying restrictions (fourth moment)
 
-    %% Test over-identifying restrictions
-
-    p = length(mu_hat);
-    h = @(theta) moment_function(theta);
-    G_fct = @(theta) FiniteDiff(h, theta);
-
-    h_theta_hat_justid = h(estim.justid.theta_hat); % Moment function at just-ID estimates
-    estim.overid_test.moment_errors = mu_hat'-h_theta_hat_justid; % Moment errors
-    G_hat_justid = G_fct(estim.justid.theta_hat); % hat{G}
-    M_hat_justid = eye(p) - G_hat_justid*[jacob_justid, zeros(3,p-3)]; % Jacobian for transforming sample moments into moment errors
-    estim.overid_test.se = sqrt(diag(M_hat_justid*V_hat*M_hat_justid')); % SE for moment errors, actual
-    estim.overid_test.indep_se = sqrt(diag(M_hat_justid*diag(sigma_hat.^2)*M_hat_justid')); % SE if independent
-    estim.overid_test.wcse = abs(M_hat_justid)*sigma_hat; % Worst-case SE
+    % Full information
+    estim.overid_test.errors = res_justid_fullinfo.overid.errors; % Errors in matching moments
+    estim.overid_test.fullinfo_se = res_justid_fullinfo.overid.se; % SE for moment errors
+    
+    % Assuming independence
+    estim.overid_test.indep_se = res_justid_indep.overid.se; % SE for moment errors
+    
+    % Worst case
+    estim.overid_test.wc_se = res_justid_wc.overid.se; % SE for moment errors
     
     % Can't test validity of first three moments (used for just-ID estimation)
-    estim.overid_test.se(1:3) = nan;
+    estim.overid_test.fullinfo_se(1:3) = nan;
     estim.overid_test.indep_se(1:3) = nan;
-    estim.overid_test.wcse(1:3) = nan;
+    estim.overid_test.wc_se(1:3) = nan;
 
     
     %% Estimation by worst-case-optimal moment selection
 
-    k = length(estim.justid.theta_hat);
-
-    estim.wcopt.theta_hat = nan(k,1);
-    estim.wcopt.wcse = nan(k,1);
-    estim.wcopt.x_hat = nan(k,p);
-    the_eye = eye(k);
-
-    for i=1:k % Loop over parameters
-        [~, res_onestep] ...
-            = HTest_Single_WorstCaseOptW_Step2(V_hat, ...
-                G_hat_justid, G_fct, the_eye(:,i), 1, ...
-                false, h, [], ...
-                true, mu_hat', estim.justid.theta_hat, h_theta_hat_justid); % Worst-case optimal estimates (one-step update from just-ID estimates)
-        estim.wcopt.theta_hat(i) = res_onestep.lcomb; % Parameters estimates
-        estim.wcopt.wcse(i) = res_onestep.stderr_check; % SE
-        estim.wcopt.x_hat(i,:) = res_onestep.x_check; % Loadings on moments
-    end
+    res_opt_wc = WorstCaseSE(@moment_function, mu_hat, @(mu,W) param_closed_form(mu(1:3)), ...
+                             'sigma', sigma_hat, 'opt', true, 'one_step', true);
+    estim.wcopt.theta_hat = res_opt_wc.lambda_theta; % Estimate
+    estim.wcopt.se = res_opt_wc.lambda_theta_se; % SE
+    estim.wcopt.x_hat = res_opt_wc.x_hat; % Moment loadings
 
 
     %% Full-information efficient estimation
 
-    estim.fullinfo.theta_hat = getOnestep(h_theta_hat_justid, inv(V_hat), G_hat_justid, estim.justid.theta_hat, mu_hat'); % Efficient estimates (one-step update from just-ID estimates)
-    estim.fullinfo.se = sqrt(diag(inv(G_hat_justid'*(V_hat\G_hat_justid)))); % SE
+    res_opt_fullinfo = WorstCaseSE(@moment_function, mu_hat, @(mu,W) param_closed_form(mu(1:3)), ...
+                                   'V', V_hat, 'opt', true, 'one_step', true);
+    estim.fullinfo.theta_hat = res_opt_fullinfo.theta; % Estimate
+    estim.fullinfo.se = res_opt_fullinfo.lambda_theta_se; % SE
     
     
 end

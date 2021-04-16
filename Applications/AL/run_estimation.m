@@ -98,44 +98,44 @@ estim = estimate_model(mu_hat, V_hat);
 disp(' ');
 disp('Just-identified estimates: #prod, vol, sqrt(menu cost)');
 disp(estim.justid.theta_hat');
-disp('Actual SE');
-disp(estim.justid.se');
+disp('Full-info SE');
+disp(estim.justid.fullinfo_se');
 disp('SE under independence');
 disp(estim.justid.indep_se');
 disp('Worst-case SE');
-disp(estim.justid.wcse');
+disp(estim.justid.wc_se');
 disp('Ratio of SE: actual/worst-case');
-disp(estim.justid.se'./estim.justid.wcse');
+disp(estim.justid.fullinfo_se'./estim.justid.wc_se');
 disp('Ratio of SE: independence/worst-case');
-disp(estim.justid.indep_se'./estim.justid.wcse');
+disp(estim.justid.indep_se'./estim.justid.wc_se');
 
 disp(' ');
 disp('Over-ID test moment errors: avg#changes, std, 4th, avg-abs');
-disp(estim.overid_test.moment_errors');
-disp('Actual SE');
-disp(estim.overid_test.se');
+disp(estim.overid_test.errors');
+disp('Full-info SE');
+disp(estim.overid_test.fullinfo_se');
 disp('SE under independence');
 disp(estim.overid_test.indep_se');
 disp('Worst-case SE');
-disp(estim.overid_test.wcse');
+disp(estim.overid_test.wc_se');
 disp('Ratio of SE: actual/worst-case');
-disp(estim.overid_test.se'./estim.overid_test.wcse');
+disp(estim.overid_test.fullinfo_se'./estim.overid_test.wc_se');
 disp('Ratio of SE: independence/worst-case');
-disp(estim.overid_test.indep_se'./estim.overid_test.wcse');
-disp('Actual p-values');
-disp(2*(1-normcdf(abs(estim.overid_test.moment_errors./estim.overid_test.se)')));
+disp(estim.overid_test.indep_se'./estim.overid_test.wc_se');
+disp('Full-info p-values');
+disp(2*normcdf(-abs(estim.overid_test.errors./estim.overid_test.fullinfo_se)'));
 disp('p-values under independence');
-disp(2*(1-normcdf(abs(estim.overid_test.moment_errors./estim.overid_test.indep_se)')));
+disp(2*normcdf(-abs(estim.overid_test.errors./estim.overid_test.indep_se)'));
 disp('Worst-case p-values');
-disp(2*(1-normcdf(abs(estim.overid_test.moment_errors./estim.overid_test.wcse)')));
+disp(2*normcdf(-abs(estim.overid_test.errors./estim.overid_test.wc_se)'));
 
 disp(' ');
 disp('Worst-case optimal estimates: #prod, vol, sqrt(menu cost)');
 disp(estim.wcopt.theta_hat');
 disp('Worst-case SE');
-disp(estim.wcopt.wcse');
+disp(estim.wcopt.se');
 disp('Ratio of worst-case SE: optimal/just-ID');
-disp(estim.wcopt.wcse'./estim.justid.wcse');
+disp(estim.wcopt.se'./estim.justid.wc_se');
 
 disp(' ');
 disp('Full-information efficient estimates: #prod, vol, sqrt(menu cost)');
@@ -143,10 +143,10 @@ disp(estim.fullinfo.theta_hat');
 disp('SE');
 disp(estim.fullinfo.se');
 disp('Ratio of SE: full-info/worst-case-optimal');
-disp(estim.fullinfo.se'./estim.wcopt.wcse');
+disp(estim.fullinfo.se'./estim.wcopt.se');
 
 
-%% Simulation study, given empirically estimated parameters
+%% Simulation study, using empirically estimated parameters
 
 if ~run_sim
     return;
@@ -198,10 +198,10 @@ parfor i=1:numrep_sim
     
     % Store estimates and SE
     sim_theta_hat(i,:,:) = [repmat(estim_sim.justid.theta_hat,1,3) estim_sim.fullinfo.theta_hat estim_sim.wcopt.theta_hat];
-    sim_se(i,:,:) = [estim_sim.justid.se estim_sim.justid.indep_se estim_sim.justid.wcse estim_sim.fullinfo.se estim_sim.wcopt.wcse];
+    sim_se(i,:,:) = [estim_sim.justid.fullinfo_se estim_sim.justid.indep_se estim_sim.justid.wc_se estim_sim.fullinfo.se estim_sim.wcopt.se];
     
     % Compute over-ID t-statistics
-    sim_overid_tstat(i,:) = abs(estim_sim.overid_test.moment_errors(4))./[estim_sim.overid_test.se(4) estim_sim.overid_test.indep_se(4) estim_sim.overid_test.wcse(4)];
+    sim_overid_tstat(i,:) = abs(estim_sim.overid_test.errors(4))./[estim_sim.overid_test.fullinfo_se(4) estim_sim.overid_test.indep_se(4) estim_sim.overid_test.wc_se(4)];
     
     % Print progress
     if mod(i,ceil(numrep_sim/50))==0
