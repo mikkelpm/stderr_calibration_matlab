@@ -1,4 +1,4 @@
-function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
+function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
 
     % Worst-case standard errors for minimum distance estimates
     % without knowledge of the correlation matrix for the matched moments
@@ -6,12 +6,31 @@ function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
     % If desired, also computes:
     % - worst-case optimal estimates
     % - full-information efficient estimates
-    % - over-identification test for each individual moments
+    % - over-identification test for each individual moment
     
     % Reference:
-    % Cocci, Matt & Mikkel Plagborg-Moller, "Standard Errors for Calibrated
-    % Parameters", https://scholar.princeton.edu/mikkelpm/calibration
+    % Cocci, Matthew D. & Mikkel Plagborg-Moller, "Standard Errors for Calibrated Parameters"
+    % https://scholar.princeton.edu/mikkelpm/calibration
 
+    
+    % Inputs: see below
+    
+    % Outputs: structure with the following fields
+    % (some fields may be missing in special cases)
+    % - theta:                  point estimates of parameters theta (k x 1)
+    % - h(theta):               moment function evaluated at theta (p x 1)
+    % - lambda_theta:           point estimates of lambda'*theta (r x 1)
+    % - lambda_theta_se:        SE of lambda'*theta (r x 1)
+    % - lambda_theta_varcov:    var-cov matrix of lambda'*theta (r x r), if full info
+    % - G:                      jacobian of moments mu with respect to parameters theta (p x k)
+    % - x_hat:                  loadings of lambda'*theta on moments mu (p x r)
+    % - overid:                 structure for over-identification tests for individual moments
+    %                           with the following fields
+    % -- errors:                moment errors mu-h(theta)
+    % -- se:                    SE of moment errors
+    % -- t_stats:               t-statistics for testing moment errors equal zero
+    % -- p_vals:                p-values for t-tests
+    
     
     %% Parse inputs
 
@@ -24,6 +43,8 @@ function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
         % Function mapping parameters theta (k x 1) into moments mu (p x 1)
     addRequired(ip, 'mu', @isnumeric);
         % Estimated moments mu (p x 1)
+    addRequired(ip, 'sigma', @isnumeric);
+        % Standard errors of mu estimate (p x 1), may be empty if "V" is supplied (see below)
     addRequired(ip, 'theta_estim_fct', @(x) isa(x, 'function_handle') | isempty(x));
         % Function mapping mu (p x 1) and weight matrix W (p x p) into minimum distance estimate theta (k x 1)
     
@@ -31,10 +52,7 @@ function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
     addParameter(ip, 'lambda', [], @isnumeric);
         % Linear combinations (k x r) of theta of interest, each column represents a different linear combination of length k
         % Default: lambda=eye(k), i.e., interested in each element of theta separately
-    addParameter(ip, 'sigma', ones(p,1), @isnumeric);
-        % Standard errors of mu estimate (p x 1), only needed for worst-case analysis
-        % Default: vector of ones
-    addParameter(ip, 'W', [], @isnumeric);
+    addParameter(ip, 'W', diag(1./sigma.^2), @isnumeric);
         % Minimum distance weight matrix (p x p)
         % Default: diagonal matrix with entries sigma_j^{-2}
     addParameter(ip, 'V', [], @isnumeric);
@@ -56,7 +74,7 @@ function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
         % Numerical threshold for determining whether eigenvalues are zero
         % Default: 1e-8
     
-    parse(ip, h, mu, theta_estim_fct, varargin{:}); % Parse inputs
+    parse(ip, h, mu, sigma, theta_estim_fct, varargin{:}); % Parse inputs
     
     
     %% Check inputs
@@ -64,15 +82,16 @@ function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
     res = struct;
     
     res.mu = mu(:);
-    res.sigma = ip.Results.sigma(:);
+    res.sigma = sigma(:);
     res.W = ip.Results.W;
     res.V = ip.Results.V;
     
-    if isempty(res.W)
-        res.W = diag(1./res.sigma.^2); % Default weight matrix
+    if isempty(res.W) && ~isempty(res.V)
+        res.W = inv(res.V); % Full-info efficient weight matrix
     end
     
-    assert(length(res.sigma)==p, 'Dimension of sigma is incorrect');
+    assert(~isempty(res.sigma) || ~isempty(res.V), 'Either sigma or V must be supplied');
+    assert(isempty(res.sigma) || length(res.sigma)==p, 'Dimension of sigma is incorrect');
     assert(isequal(size(res.W),[p,p]), 'Dimensions of W are incorrect');
     assert(isempty(res.V) || isequal(size(res.V),[p,p]), 'Dimensions of V are incorrect');
     assert(ip.Results.zero_thresh>=0, 'zero_thresh must be non-negative');
@@ -138,19 +157,18 @@ function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
                 
                 res.lambda_theta = nan(nl,1);
                 res.lambda_theta_se = nan(nl,1);
-                res.x_hat = nan(nl,p);
+                res.x_hat = nan(p,nl);
                 
                 for il=1:nl % Loop over each parameter of interest
                     % Recursive call to function with single vector lambda
-                    the_res = WorstCaseSE(h, res.mu, theta_estim_fct, ...
+                    the_res = WorstCaseSE(h, res.mu, res.sigma, theta_estim_fct, ...
                                           'lambda', res.lambda(:,il), ...
-                                          'sigma', res.sigma, 'W', res.W, ...
-                                          'theta', res.theta_init, ...
+                                          'W', res.W, 'theta', res.theta_init, ...
                                           'opt', true, 'one_step', res.one_step, ...
                                           'overid', false, 'zero_thresh', ip.Results.zero_thresh);
                     res.lambda_theta(il) = the_res.lambda_theta;
                     res.lambda_theta_se(il) = the_res.lambda_theta_se;
-                    res.x_hat(il,:) = the_res.x_hat;
+                    res.x_hat(:,il) = the_res.x_hat;
                 end
                 
             else % Otherwise, compute worst-case optimum for the single parameter of interest
@@ -212,9 +230,8 @@ function res = WorstCaseSE(h, mu, theta_estim_fct, varargin)
         
         % SE for moment errors
         M = eye(p) - res.W*res.G*((res.G'*res.W*res.G)\res.G');
-        the_res = WorstCaseSE(@(x) x, res.mu, [], ...
-                              'lambda', M, ...
-                              'sigma', res.sigma, 'W', eye(p), ...
+        the_res = WorstCaseSE(@(x) x, res.mu, res.sigma, [], ...
+                              'lambda', M, 'W', eye(p), ...
                               'V', res.V, 'theta', res.mu, ...
                               'opt', false, 'overid', false, ...
                               'zero_thresh', ip.Results.zero_thresh); % Compute standard errors for M'*hat{mu}
