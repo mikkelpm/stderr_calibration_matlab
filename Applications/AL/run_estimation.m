@@ -104,7 +104,7 @@ disp('SE under independence');
 disp(estim.justid.indep_se');
 disp('Worst-case SE');
 disp(estim.justid.wc_se');
-disp('Ratio of SE: actual/worst-case');
+disp('Ratio of SE: full-info/worst-case');
 disp(estim.justid.fullinfo_se'./estim.justid.wc_se');
 disp('Ratio of SE: independence/worst-case');
 disp(estim.justid.indep_se'./estim.justid.wc_se');
@@ -118,7 +118,7 @@ disp('SE under independence');
 disp(estim.overid_test.indep_se');
 disp('Worst-case SE');
 disp(estim.overid_test.wc_se');
-disp('Ratio of SE: actual/worst-case');
+disp('Ratio of SE: full-info/worst-case');
 disp(estim.overid_test.fullinfo_se'./estim.overid_test.wc_se');
 disp('Ratio of SE: independence/worst-case');
 disp(estim.overid_test.indep_se'./estim.overid_test.wc_se');
@@ -153,10 +153,10 @@ if ~run_sim
 end
 
 % Ordering of procedures:
-% 1: just-ID, actual SE
+% 1: just-ID, full-info SE
 % 2: just-ID, SE under independence
 % 3: just-ID, worst-case SE
-% 4: all moments, efficient, actual SE
+% 4: all moments, efficient, full-info SE
 % 5: all moments, worst-case optimal, worst-case SE
 
 % Preliminaries

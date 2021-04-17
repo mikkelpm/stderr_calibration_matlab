@@ -22,7 +22,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     % - lambda_theta:           point estimates lambda'*hat{theta} (r x 1)
     % - lambda_theta_se:        SE of lambda'*hat{theta} (r x 1)
     % - lambda_theta_varcov:    var-cov matrix of lambda'*hat{theta} (r x r), if full info
-    % - G:                      jacobian of mu=h(theta) (p x k)
+    % - G:                      Jacobian of mu=h(theta) (p x k)
     % - x_hat:                  loadings of lambda'*hat{theta} on moments hat{mu} (p x r)
     % - overid:                 structure for over-identification tests for individual moments
     %                           with the following fields
@@ -62,6 +62,9 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     addParameter(ip, 'theta', [], @isnumeric);
         % Initial consistent estimate of theta (k x 1) - if supplied, over-rides initial estimation step
         % Default: empty
+    addParameter(ip, 'G_fct', @(x) ComputeG(h,x), @(x) isa(x, 'function_handle') || isnumeric(x));
+        % Function that returns Jacobian (p x k) of h(.) with respect to theta, given theta
+        % Default: numerically differentiate h(.)
     addParameter(ip, 'opt', true,  @(x) islogical(x) | isnumeric(x));
         % true: optimal estimation (either full-information-efficient or worst-case-optimal)
         % Default: true
@@ -91,6 +94,11 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         res.W = inv(res.V); % Full-info efficient weight matrix
     end
     
+    G_fct = ip.Results.G_fct;
+    if isnumeric(ip.Results.G_fct)
+        G_fct = @(x) ip.Results.G_fct; % If G_fct is a constant matrix, make it into a function
+    end
+    
     assert(~isempty(res.sigma) || ~isempty(res.V), 'Either sigma or V must be supplied');
     assert(isempty(res.sigma) || length(res.sigma)==p, 'Dimension of sigma is incorrect');
     assert(isequal(size(res.W),[p,p]), 'Dimensions of W are incorrect');
@@ -112,7 +120,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     res.theta = res.theta(:);
     res.h_theta = h(res.theta);
     k = length(res.theta);
-    res.G = ComputeG(h, res.theta); % Moment function Jacobian at initial estimate
+    res.G = G_fct(res.theta); % Moment function Jacobian at initial estimate
     assert(isequal(size(res.G),[p,k]), 'Jacobian of moment function has incorrect dimensions');
     
     % Check/define lambda
@@ -159,8 +167,9 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
                     the_res = WorstCaseSE(h, res.mu, res.sigma, theta_estim_fct, ...
                                           'lambda', res.lambda(:,il), ...
                                           'W', res.W, 'theta', res.theta_init, ...
-                                          'opt', true, 'one_step', res.one_step, ...
-                                          'overid', false, 'zero_thresh', ip.Results.zero_thresh);
+                                          'G_fct', res.G, 'opt', true, ...
+                                          'one_step', res.one_step, 'overid', false, ...
+                                          'zero_thresh', ip.Results.zero_thresh);
                     res.lambda_theta(il) = the_res.lambda_theta;
                     res.lambda_theta_se(il) = the_res.lambda_theta_se;
                     res.x_hat(:,il) = the_res.x_hat;
@@ -187,7 +196,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         end
         
         if isfield(res, 'theta')
-            res.G = ComputeG(h, res.theta); % Update Jacobian
+            res.G = G_fct(res.theta); % Update Jacobian
             res.h_theta = h(res.theta); % Update h(hat{theta})
         end
         
@@ -233,8 +242,8 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         % SE for moment errors
         M = eye(p) - res.W*res.G*((res.G'*res.W*res.G)\res.G');
         the_res = WorstCaseSE(@(x) x, res.mu, res.sigma, [], ...
-                              'lambda', M, 'W', eye(p), ...
-                              'V', res.V, 'theta', res.mu, ...
+                              'lambda', M, 'W', eye(p), 'V', res.V, ...
+                              'theta', res.mu, 'G_fct', eye(p), ...
                               'opt', false, 'overid', false, ...
                               'zero_thresh', ip.Results.zero_thresh); % Compute standard errors for M'*hat{mu}
         res.overid.se = the_res.lambda_theta_se;
