@@ -15,17 +15,17 @@ function estim = estimate_model(mu_hat, V_hat)
     res_justid_fullinfo = WorstCaseSE(@moment_function, mu_hat, [], @(W) param_closed_form(mu_hat(1:3)), ...
                                       'W', W_justid, 'V', V_hat, 'opt', false);
     estim.justid.theta_hat = res_justid_fullinfo.theta; % Estimates
-    estim.justid.fullinfo_se = res_justid_fullinfo.lambda_theta_se; % SE
+    estim.justid.fullinfo_se = res_justid_fullinfo.r_theta_se; % SE
 
     % Assuming independence
     res_justid_indep = WorstCaseSE(@moment_function, mu_hat, [], @(W) param_closed_form(mu_hat(1:3)), ...
                                    'W', W_justid, 'V', diag(diag(V_hat)), 'opt', false);
-    estim.justid.indep_se = res_justid_indep.lambda_theta_se; % SE
+    estim.justid.indep_se = res_justid_indep.r_theta_se; % SE
     
     % Worst case
     res_justid_wc = WorstCaseSE(@moment_function, mu_hat, sigma_hat, @(W) param_closed_form(mu_hat(1:3)), ...
                                 'W', W_justid, 'opt', false);
-    estim.justid.wc_se = res_justid_wc.lambda_theta_se; % SE
+    estim.justid.wc_se = res_justid_wc.r_theta_se; % SE
 
 
     %% Test of over-identifying restrictions (fourth moment)
@@ -50,8 +50,8 @@ function estim = estimate_model(mu_hat, V_hat)
 
     res_opt_wc = WorstCaseSE(@moment_function, mu_hat, sigma_hat, @(W) param_closed_form(mu_hat(1:3)), ...
                              'opt', true, 'one_step', true);
-    estim.wcopt.theta_hat = res_opt_wc.lambda_theta; % Estimate
-    estim.wcopt.se = res_opt_wc.lambda_theta_se; % SE
+    estim.wcopt.theta_hat = res_opt_wc.r_theta; % Estimate
+    estim.wcopt.se = res_opt_wc.r_theta_se; % SE
     estim.wcopt.x_hat = res_opt_wc.x_hat; % Moment loadings
 
 
@@ -60,7 +60,7 @@ function estim = estimate_model(mu_hat, V_hat)
     res_opt_fullinfo = WorstCaseSE(@moment_function, mu_hat, [], @(W) param_closed_form(mu_hat(1:3)), ...
                                    'V', V_hat, 'opt', true, 'one_step', true);
     estim.fullinfo.theta_hat = res_opt_fullinfo.theta; % Estimate
-    estim.fullinfo.se = res_opt_fullinfo.lambda_theta_se; % SE
+    estim.fullinfo.se = res_opt_fullinfo.r_theta_se; % SE
     
     
 end

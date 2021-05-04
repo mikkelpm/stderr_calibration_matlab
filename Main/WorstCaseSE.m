@@ -18,12 +18,13 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     % Outputs: structure with the following fields
     % (some fields may be missing in special cases)
     % - theta:                  point estimates hat{theta} (k x 1)
-    % - h(theta):               moment function evaluated at hat{theta} (p x 1)
-    % - lambda_theta:           point estimates lambda'*hat{theta} (r x 1)
-    % - lambda_theta_se:        SE of lambda'*hat{theta} (r x 1)
-    % - lambda_theta_varcov:    var-cov matrix of lambda'*hat{theta} (r x r), if full info
-    % - G:                      Jacobian of mu=h(theta) (p x k)
-    % - x_hat:                  loadings of lambda'*hat{theta} on moments hat{mu} (p x r)
+    % - h_theta:                moment function evaluated at hat{theta} (p x 1)
+    % - r_theta:                point estimates r(hat{theta}) (m x 1)
+    % - r_theta_se:             SE of r(hat{theta}) (m x 1)
+    % - r_theta_varcov:         var-cov matrix of r(hat{theta}) (m x m), if full info
+    % - G:                      Jacobian of h(theta) (p x k)
+    % - R:                      Jacobian of r(theta) (m x k)
+    % - x_hat:                  loadings of r(hat{theta}) on moments hat{mu} (p x m)
     % - overid:                 structure for over-identification tests for individual moments
     %                           with the following fields
     % -- errors:                moment errors hat{mu}-h(hat{theta})
@@ -46,13 +47,13 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     addRequired(ip, 'sigma', @isnumeric);
         % Standard errors of hat{mu} (p x 1), may be empty if "V" is supplied (see below)
     addRequired(ip, 'theta_estim_fct', @(x) isa(x, 'function_handle') | isempty(x));
-        % Function weight matrix W (p x p) into minimum distance estimate theta (k x 1),
+        % Function mapping weight matrix W (p x p) into minimum distance estimate theta (k x 1),
         % e.g., theta_estim_fct = @(W) fminunc(@(theta) (mu-h(theta))'*W*(mu-h(theta)), x0)
     
     % Optional inputs
-    addParameter(ip, 'lambda', [], @isnumeric);
-        % Linear combinations (k x r) of theta of interest, each column represents a different linear combination of length k
-        % Default: lambda=eye(k), i.e., interested in each element of theta separately
+    addParameter(ip, 'r', @(x) x, @(x) isa(x, 'function_handle') | isempty(x));
+        % Function that returns transformed parameters r(theta) of interest, given theta, may be vector-valued (m x 1)
+        % Default: r(theta)=theta
     addParameter(ip, 'W', diag(1./sigma.^2), @isnumeric);
         % Minimum distance weight matrix (p x p)
         % Default: diagonal matrix with entries sigma_j^{-2}
@@ -65,6 +66,9 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     addParameter(ip, 'G_fct', @(x) ComputeG(h,x), @(x) isa(x, 'function_handle') || isnumeric(x));
         % Function that returns Jacobian (p x k) of h(.) with respect to theta, given theta
         % Default: numerically differentiate h(.)
+    addParameter(ip, 'R_fct', [], @(x) isa(x, 'function_handle') || isnumeric(x));
+        % Function that returns Jacobian (m x k) of r(.) with respect to theta, given theta
+        % Default: numerically differentiate r(.)
     addParameter(ip, 'opt', true,  @(x) islogical(x) | isnumeric(x));
         % true: optimal estimation (either full-information-efficient or worst-case-optimal)
         % Default: true
@@ -95,8 +99,17 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     end
     
     G_fct = ip.Results.G_fct;
-    if isnumeric(ip.Results.G_fct)
+    if isnumeric(G_fct)
         G_fct = @(x) ip.Results.G_fct; % If G_fct is a constant matrix, make it into a function
+    end
+    
+    R_fct = ip.Results.R_fct;
+    if isnumeric(R_fct)
+        if isempty(R_fct)
+            R_fct = @(x) ComputeG(ip.Results.r,x); % If R_fct is not supplied, use numerical differentiation
+        else
+            R_fct = @(x) ip.Results.R_fct; % If R_fct is a constant matrix, make it into a function
+        end
     end
     
     assert(~isempty(res.sigma) || ~isempty(res.V), 'Either sigma or V must be supplied');
@@ -119,18 +132,13 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     end
     res.theta = res.theta(:);
     res.h_theta = h(res.theta);
-    k = length(res.theta);
+    k = length(res.theta); % Number of parameters
+    
     res.G = G_fct(res.theta); % Moment function Jacobian at initial estimate
     assert(isequal(size(res.G),[p,k]), 'Jacobian of moment function has incorrect dimensions');
-    
-    % Check/define lambda
-    res.lambda = ip.Results.lambda;
-    if isempty(res.lambda)
-        res.lambda = eye(k); % Default: Compute SE for each element of theta
-    elseif size(res.lambda,1)==1
-        res.lambda = res.lambda';
-    end
-    assert(size(res.lambda,1)==k, 'Dimensions of lambda are incorrect');
+    res.R = R_fct(res.theta); % Transformation function Jacobian at initial estimate
+    assert(size(res.R,2)==k, 'Jacobian of transformation function has incorrect dimensions');
+    m = size(res.R,1); % Number of transformations of interest
     
     
     %% Updated estimate
@@ -154,35 +162,34 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
             
         else % Worst case analysis
             
-            nl = size(res.lambda,2);
-            
-            if nl>1 % If there is more than one parameter of interest
+            if m>1 % If there is more than one parameter of interest
                 
-                res.lambda_theta = nan(nl,1);
-                res.lambda_theta_se = nan(nl,1);
-                res.x_hat = nan(p,nl);
+                res.r_theta = nan(m,1);
+                res.r_theta_se = nan(m,1);
+                res.x_hat = nan(p,m);
+                the_eye = eye(m);
                 
-                for il=1:nl % Loop over each parameter of interest
-                    % Recursive call to function with single vector lambda
+                for im=1:m % Loop over each parameter of interest
+                    % Recursive call to function with single parameter of interest
                     the_res = WorstCaseSE(h, res.mu, res.sigma, theta_estim_fct, ...
-                                          'lambda', res.lambda(:,il), ...
+                                          'r', @(x) the_eye(im,:)*ip.Results.r(x), ...
                                           'W', res.W, 'theta', res.theta_init, ...
-                                          'G_fct', res.G, 'opt', true, ...
-                                          'one_step', res.one_step, 'overid', false, ...
+                                          'G_fct', res.G, 'R_fct', res.R(im,:), ...
+                                          'opt', true, 'one_step', res.one_step, 'overid', false, ...
                                           'zero_thresh', ip.Results.zero_thresh);
-                    res.lambda_theta(il) = the_res.lambda_theta;
-                    res.lambda_theta_se(il) = the_res.lambda_theta_se;
-                    res.x_hat(:,il) = the_res.x_hat;
+                    res.r_theta(im) = the_res.r_theta;
+                    res.r_theta_se(im) = the_res.r_theta_se;
+                    res.x_hat(:,im) = the_res.x_hat;
                 end
                 
             else % Otherwise, compute worst-case optimum for the single parameter of interest
                 
                 % Worst-case optimal weighting and SE
-                [res.x_hat, res.lambda_theta_se] = ComputeWorstCaseOpt_Single(res.sigma, res.G, res.lambda, ip.Results.zero_thresh);
+                [res.x_hat, res.r_theta_se] = ComputeWorstCaseOpt_Single(res.sigma, res.G, res.R', ip.Results.zero_thresh);
                 
                 % Update point estimate
                 if res.one_step % One-step update
-                    res.lambda_theta = getOnestep(res.h_theta_init, [], res.x_hat, res.lambda'*res.theta_init, res.mu);
+                    res.r_theta = getOnestep(res.h_theta_init, [], res.x_hat, ip.Results.r(res.theta_init), res.mu);
                 else % Full optimization update
                     % Weight matrix only puts weight on k moments with largest loadings in hat{x}
                     [~,I]=sort(abs(x_hat)); % Sort elements in hat{x} by magnitude
@@ -195,15 +202,16 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
             
         end
         
-        if isfield(res, 'theta')
-            res.G = G_fct(res.theta); % Update Jacobian
-            res.h_theta = h(res.theta); % Update h(hat{theta})
+        if isfield(res, 'theta') % Update Jacobians and moment estimate
+            res.G = G_fct(res.theta);
+            res.R = R_fct(res.theta);
+            res.h_theta = h(res.theta);
         end
         
     end
     
-    if ~isfield(res, 'lambda_theta')
-        res.lambda_theta = res.lambda'*res.theta; % Linear combinations of interest
+    if ~isfield(res, 'r_theta')
+        res.r_theta = ip.Results.r(res.theta); % Transformations of interest
     end
     
     
@@ -211,15 +219,15 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     
     if res.full_info % Full information analysis
         
-        res.lambda_theta_varcov = ComputeCMDAvar(res.G,res.W,res.V,res.lambda'); % Var-cov matrix
-        res.lambda_theta_se = sqrt(diag(res.lambda_theta_varcov)); % SE
+        res.r_theta_varcov = ComputeCMDAvar(res.G,res.W,res.V,res.R); % Var-cov matrix
+        res.r_theta_se = sqrt(diag(res.r_theta_varcov)); % SE
         
     else % Worst case analysis
         
         if ~res.opt % SE have already been computed above for worst-case optimal estimates
             
-            res.x_hat = res.W*res.G*((res.G'*res.W*res.G)\res.lambda); % Moment loadings
-            res.lambda_theta_se = abs(res.x_hat)'*res.sigma; % SE
+            res.x_hat = res.W*res.G*((res.G'*res.W*res.G)\res.R'); % Moment loadings
+            res.r_theta_se = abs(res.x_hat)'*res.sigma; % SE
             
         end
         
@@ -242,11 +250,12 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         % SE for moment errors
         M = eye(p) - res.W*res.G*((res.G'*res.W*res.G)\res.G');
         the_res = WorstCaseSE(@(x) x, res.mu, res.sigma, [], ...
-                              'lambda', M, 'W', eye(p), 'V', res.V, ...
-                              'theta', res.mu, 'G_fct', eye(p), ...
+                              'r', @(x) M'*x, ...
+                              'W', eye(p), 'V', res.V, 'theta', res.mu, ...
+                              'G_fct', eye(p), 'R_fct', M', ...
                               'opt', false, 'overid', false, ...
-                              'zero_thresh', ip.Results.zero_thresh); % Compute standard errors for M'*hat{mu}
-        res.overid.se = the_res.lambda_theta_se;
+                              'zero_thresh', ip.Results.zero_thresh); % Compute SE for M'*hat{mu}
+        res.overid.se = the_res.r_theta_se;
         
         % Test statistics and p-values
         res.overid.t_stats = res.overid.errors./res.overid.se;
