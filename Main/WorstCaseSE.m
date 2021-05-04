@@ -4,7 +4,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     % without knowledge of the correlation matrix for the matched moments
     
     % If desired, also computes:
-    % - worst-case optimal estimates
+    % - worst-case efficient estimates
     % - full-information efficient estimates
     % - over-identification test for each individual moment
     
@@ -25,12 +25,16 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     % - G:                      Jacobian of h(theta) (p x k)
     % - R:                      Jacobian of r(theta) (m x k)
     % - x_hat:                  loadings of r(hat{theta}) on moments hat{mu} (p x m)
+    % - joint:                  structure for joint hypothesis test r(theta)=0
+    %                           with the following fields
+    %   -- test_stat            joint test statistic
+    %   -- p_val                p-value for joint test
     % - overid:                 structure for over-identification tests for individual moments
     %                           with the following fields
-    % -- errors:                moment errors hat{mu}-h(hat{theta})
-    % -- se:                    SE of moment errors
-    % -- t_stats:               t-statistics for testing moment errors equal zero
-    % -- p_vals:                p-values for t-tests
+    %   -- errors:              moment errors hat{mu}-h(hat{theta})
+    %   -- se:                  SE of moment errors
+    %   -- t_stats:             t-statistics for testing moment errors equal zero
+    %   -- p_vals:              p-values for t-tests
     
     
     %% Parse inputs
@@ -69,12 +73,18 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     addParameter(ip, 'R_fct', [], @(x) isa(x, 'function_handle') || isnumeric(x));
         % Function that returns Jacobian (m x k) of r(.) with respect to theta, given theta
         % Default: numerically differentiate r(.)
-    addParameter(ip, 'opt', true,  @(x) islogical(x) | isnumeric(x));
-        % true: optimal estimation (either full-information-efficient or worst-case-optimal)
+    addParameter(ip, 'eff', true,  @(x) islogical(x) | isnumeric(x));
+        % true: efficient estimation (either full-information or worst-case)
         % Default: true
     addParameter(ip, 'one_step', true,  @(x) islogical(x) | isnumeric(x));
-        % true: one-step optimal estimate, false: full re-optimization via "theta_estim_fct" function
+        % true: one-step efficient estimate, false: full re-optimization via "theta_estim_fct" function
         % Default: true
+    addParameter(ip, 'joint', false, @(x) islogical(x) | isnumeric(x));
+        % true: compute test of joint hypothesis r(theta)=0 (requires "cvx" software package)
+        % Default: false
+	addParameter(ip, 'S', [], @isnumeric);
+        % Weight matrix in joint hypothesis test statistic
+        % Default: empty, yielding ad hoc choice specified in paper
     addParameter(ip, 'overid', true, @(x) islogical(x) | isnumeric(x));
         % true: compute over-identification tests
         % Default: true
@@ -119,8 +129,8 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     assert(ip.Results.zero_thresh>=0, 'zero_thresh must be non-negative');
     
     res.full_info = ~isempty(res.V); % Full-information estimate? (Requires matrix V.)
-    res.opt = ip.Results.opt; % Optimal estimate?
-    res.one_step = ip.Results.one_step; % One-step optimal estimate?
+    res.eff = ip.Results.eff; % Efficient estimate?
+    res.one_step = ip.Results.one_step; % One-step efficient estimate?
     
     
     %% Initial estimate
@@ -143,7 +153,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     
     %% Updated estimate
     
-    if res.opt % Update initial estimate to optimal estimate
+    if res.eff % Update initial estimate to efficient estimate
         
         % Store initial estimates
         res.theta_init = res.theta;
@@ -175,7 +185,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
                                           'r', @(x) the_eye(im,:)*ip.Results.r(x), ...
                                           'W', res.W, 'theta', res.theta_init, ...
                                           'G_fct', res.G, 'R_fct', res.R(im,:), ...
-                                          'opt', true, 'one_step', res.one_step, 'overid', false, ...
+                                          'eff', true, 'one_step', res.one_step, 'overid', false, ...
                                           'zero_thresh', ip.Results.zero_thresh);
                     res.r_theta(im) = the_res.r_theta;
                     res.r_theta_se(im) = the_res.r_theta_se;
@@ -184,7 +194,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
                 
             else % Otherwise, compute worst-case optimum for the single parameter of interest
                 
-                % Worst-case optimal weighting and SE
+                % Worst-case efficient weighting and SE
                 [res.x_hat, res.r_theta_se] = ComputeWorstCaseOpt_Single(res.sigma, res.G, res.R', ip.Results.zero_thresh);
                 
                 % Update point estimate
@@ -224,11 +234,46 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         
     else % Worst case analysis
         
-        if ~res.opt % SE have already been computed above for worst-case optimal estimates
+        if ~res.eff % SE have already been computed above for worst-case efficient estimates
             
             res.x_hat = res.W*res.G*((res.G'*res.W*res.G)\res.R'); % Moment loadings
             res.r_theta_se = abs(res.x_hat)'*res.sigma; % SE
             
+        end
+        
+    end
+    
+    
+    %% Joint test of hypothesis r(theta)=0
+    
+    if ip.Results.joint
+        
+        res.joint = struct;
+        
+        % Weight matrix for test statistic
+        aux = res.W*res.G*((res.G'*res.W*res.G)\res.R');
+        if isempty(ip.Results.S)
+            if res.full_info % Full information analysis
+                res.joint.S = inv(res.r_theta_varcov);
+            else % Otherwise ad hoc choice, motivated by independent case
+                res.joint.S = inv(aux'*diag(res.sigma.^2)*aux);
+            end
+        else
+            res.joint.S = ip.Results.S; % User-specified choice
+        end
+        assert(isequal(size(res.joint.S),[m,m]), 'Dimensions of S are incorrect');
+        
+        % Test statistic
+        res.joint.test_stat = res.r_theta'*res.joint.S*res.r_theta;
+        
+        % p-value
+        if res.full_info % Full information analysis
+            res.joint.p_val = 1-chi2cdf(res.joint.test_stat,m); % Only valid if efficient estimator is used
+        else % Worst case analysis
+            V_constr = nan(p);
+            V_constr(eye(p)==1) = res.sigma.^2;
+            [~, res.joint.max_trace] = SolveVarianceSDP(aux*res.joint.S*aux', V_constr); % Solve maximum trace problem for critical value
+            res.joint.p_val = 1-chi2cdf(res.joint.test_stat/res.joint.max_trace,1); % Note: p-value only applicable if <0.215
         end
         
     end
@@ -250,14 +295,22 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         % SE for moment errors
         M = eye(p) - res.W*res.G*((res.G'*res.W*res.G)\res.G');
         the_res = WorstCaseSE(@(x) x, res.mu, res.sigma, [], ...
-                              'r', @(x) M'*x, ...
+                              'r', @(x) res.overid.errors, ...
                               'W', eye(p), 'V', res.V, 'theta', res.mu, ...
-                              'G_fct', eye(p), 'R_fct', M', ...
-                              'opt', false, 'overid', false, ...
+                              'G_fct', eye(p), 'R_fct', M', 'eff', false, ...
+                              'joint', ip.Results.joint, 'S', res.W, ...
+                              'overid', false, ...
                               'zero_thresh', ip.Results.zero_thresh); % Compute SE for M'*hat{mu}
         res.overid.se = the_res.r_theta_se;
         
-        % Test statistics and p-values
+        if isfield(the_res, 'joint')
+            res.overid.joint = the_res.joint; % Joint test of over-ID restrictions
+            if res.full_info
+                res.overid.joint.p_val = 1-chi2cdf(res.overid.joint.test_stat,p-k); % Adjust d.f.
+            end
+        end
+        
+        % Test statistics and p-values for individual moments
         res.overid.t_stats = res.overid.errors./res.overid.se;
         res.overid.p_vals = 2*normcdf(-abs(res.overid.t_stats));
         

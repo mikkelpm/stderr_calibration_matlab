@@ -130,20 +130,20 @@ disp('Worst-case p-values');
 disp(2*normcdf(-abs(estim.overid_test.errors./estim.overid_test.wc_se)'));
 
 disp(' ');
-disp('Worst-case optimal estimates: #prod, vol, sqrt(menu cost)');
-disp(estim.wcopt.theta_hat');
+disp('Worst-case efficient estimates: #prod, vol, sqrt(menu cost)');
+disp(estim.wceff.theta_hat');
 disp('Worst-case SE');
-disp(estim.wcopt.se');
-disp('Ratio of worst-case SE: optimal/just-ID');
-disp(estim.wcopt.se'./estim.justid.wc_se');
+disp(estim.wceff.se');
+disp('Ratio of worst-case SE: efficient/just-ID');
+disp(estim.wceff.se'./estim.justid.wc_se');
 
 disp(' ');
 disp('Full-information efficient estimates: #prod, vol, sqrt(menu cost)');
 disp(estim.fullinfo.theta_hat');
 disp('SE');
 disp(estim.fullinfo.se');
-disp('Ratio of SE: full-info/worst-case-optimal');
-disp(estim.fullinfo.se'./estim.wcopt.se');
+disp('Ratio of SE: full-info/worst-case-efficient');
+disp(estim.fullinfo.se'./estim.wceff.se');
 
 
 %% Simulation study, using empirically estimated parameters
@@ -157,7 +157,7 @@ end
 % 2: just-ID, SE under independence
 % 3: just-ID, worst-case SE
 % 4: all moments, efficient, full-info SE
-% 5: all moments, worst-case optimal, worst-case SE
+% 5: all moments, worst-case efficient, worst-case SE
 
 % Preliminaries
 theta_sim = estim.justid.theta_hat; % True parameters in simulations
@@ -197,8 +197,8 @@ parfor i=1:numrep_sim
     end
     
     % Store estimates and SE
-    sim_theta_hat(i,:,:) = [repmat(estim_sim.justid.theta_hat,1,3) estim_sim.fullinfo.theta_hat estim_sim.wcopt.theta_hat];
-    sim_se(i,:,:) = [estim_sim.justid.fullinfo_se estim_sim.justid.indep_se estim_sim.justid.wc_se estim_sim.fullinfo.se estim_sim.wcopt.se];
+    sim_theta_hat(i,:,:) = [repmat(estim_sim.justid.theta_hat,1,3) estim_sim.fullinfo.theta_hat estim_sim.wceff.theta_hat];
+    sim_se(i,:,:) = [estim_sim.justid.fullinfo_se estim_sim.justid.indep_se estim_sim.justid.wc_se estim_sim.fullinfo.se estim_sim.wceff.se];
     
     % Compute over-ID t-statistics
     sim_overid_tstat(i,:) = abs(estim_sim.overid_test.errors(4))./[estim_sim.overid_test.fullinfo_se(4) estim_sim.overid_test.indep_se(4) estim_sim.overid_test.wc_se(4)];
