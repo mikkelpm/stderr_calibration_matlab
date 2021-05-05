@@ -202,7 +202,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
                     res.r_theta = getOnestep(res.h_theta_init, [], res.x_hat, ip.Results.r(res.theta_init), res.mu);
                 else % Full optimization update
                     % Weight matrix only puts weight on k moments with largest loadings in hat{x}
-                    [~,I]=sort(abs(x_hat)); % Sort elements in hat{x} by magnitude
+                    [~,I]=sort(abs(res.x_hat)); % Sort elements in hat{x} by magnitude
                     res.W(I(1:p-k),:) = 0;
                     res.W(:,I(1:p-k)) = 0;
                     res.theta = theta_estim_fct(res.W); % Update estimate
