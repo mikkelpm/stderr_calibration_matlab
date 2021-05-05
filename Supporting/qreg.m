@@ -5,6 +5,8 @@ function [ bhat ] = qreg( y, x, tau )
 %   tau is a scalar for choosing the conditional quantile to be
 %   estimated
 
+% SOURCE: https://stackoverflow.com/questions/21657158/quantile-regression-with-linprog-in-matlab
+
 n=size(x,1);
 m=size(x,2);
 % vectors and matrices for linprog
