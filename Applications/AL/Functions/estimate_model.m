@@ -1,4 +1,4 @@
-function estim = estimate_model(mu_hat, V_hat)
+function estim = estimate_model(mu_hat, V_hat, varargin)
 
     % Estimate and test Alvarez & Lippi (ECMA 2014) model in various ways
 
@@ -61,6 +61,30 @@ function estim = estimate_model(mu_hat, V_hat)
                                    'V', V_hat, 'eff', true, 'one_step', true);
     estim.fullinfo.theta_hat = res_eff_fullinfo.theta; % Estimate
     estim.fullinfo.se = res_eff_fullinfo.r_theta_se; % SE
+    
+    
+    %% Joint hypothesis test based on just-identified moments
+    
+    if ~isempty(varargin) % If parameter values are supplied...
+        
+        theta0 = varargin{1}(:); % Hypothesized parameter values
+        
+        % Full information
+        res_justid_fullinfo_joint = WorstCaseSE(@moment_function, mu_hat, [], @(W) param_closed_form(mu_hat(1:3)), ...
+                                                'r', @(x)x-theta0, 'W', W_justid, 'V', V_hat, 'eff', false, 'joint', true);
+        estim.justid.fullinfo_joint_pval = res_justid_fullinfo_joint.joint.p_val;
+        
+        % Assuming independence
+        res_justid_indep_joint =    WorstCaseSE(@moment_function, mu_hat, [], @(W) param_closed_form(mu_hat(1:3)), ...
+                                                'r', @(x)x-theta0, 'W', W_justid, 'V', diag(diag(V_hat)), 'eff', false, 'joint', true);
+        estim.justid.indep_joint_pval = res_justid_indep_joint.joint.p_val;
+        
+        % Worst case
+        res_justid_wc_joint =       WorstCaseSE(@moment_function, mu_hat, sigma_hat, @(W) param_closed_form(mu_hat(1:3)), ...
+                                                'r', @(x)x-theta0, 'W', W_justid, 'eff', false, 'joint', true);
+        estim.justid.wc_joint_pval = res_justid_wc_joint.joint.p_val;
+        
+    end
     
     
 end

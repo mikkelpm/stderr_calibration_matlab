@@ -169,6 +169,7 @@ quantiles_sim = quantile_price(theta_sim(1), y_bar_sim, quant_grid_sim); % Compu
 sim_theta_hat = nan(numrep_sim,3,5);
 sim_se = sim_theta_hat;
 sim_overid_tstat = nan(numrep_sim,3); % Last dimension: 1=efficient, 2=independent, 3=worst-case
+sim_joint_pval = nan(numrep_sim,3);
 
 rng(rng_seed_sim, 'twister');
 sim_seeds = randi(2^32-1,numrep_sim,1); % RNG seeds for parallel workers
@@ -189,7 +190,7 @@ parfor i=1:numrep_sim
     
     % Estimate and test model
     try
-        estim_sim = estimate_model(mu_hat_sim, V_hat_sim);
+        estim_sim = estimate_model(mu_hat_sim, V_hat_sim, theta_sim);
     catch ME
         fprintf('%s%d\n', 'Error for i=', i);
         warning(ME.msgtext);
@@ -202,6 +203,9 @@ parfor i=1:numrep_sim
     
     % Compute over-ID t-statistics
     sim_overid_tstat(i,:) = abs(estim_sim.overid_test.errors(4))./[estim_sim.overid_test.fullinfo_se(4) estim_sim.overid_test.indep_se(4) estim_sim.overid_test.wc_se(4)];
+    
+    % Joint test p-values
+    sim_joint_pval(i,:) = [estim_sim.justid.fullinfo_joint_pval estim_sim.justid.indep_joint_pval estim_sim.justid.wc_joint_pval];
     
     % Print progress
     if mod(i,ceil(numrep_sim/50))==0
@@ -221,9 +225,10 @@ sim = struct;
 sim.theta_hat = sim_theta_hat;
 sim.se = sim_se;
 sim.overid_tstat = sim_overid_tstat;
+sim.joint_pval = sim_joint_pval;
 sim.seeds = sim_seeds;
 sim.elapsed_time = sim_elapsed_time;
-clearvars sim_theta_hat sim_se sim_overid_tstat sim_seeds sim_elapsed_time;
+clearvars sim_theta_hat sim_se sim_overid_tstat sim_joint_pval sim_seeds sim_elapsed_time;
 
 % Coverage/rejection rates
 cv_sim = norminv(1-alpha_sim/2); % Normal critical value
@@ -231,6 +236,7 @@ sim.theta_hat_error = sim.theta_hat-permute(theta_sim, [3 1 2]); % Estimation er
 sim.cover = (abs(sim.theta_hat_error./sim.se)<cv_sim); % CI coverage indicator
 sim.length = 2*sim.se*cv_sim; % CI length
 sim.overid_reject = sim.overid_tstat>cv_sim; % Over-ID rejection indicator
+sim.joint_reject = sim.joint_pval<alpha_sim; % Joint parameter test rejection indicator
 
 sim.bias = permute(mean(sim.theta_hat_error,1,'omitnan'), [2 3 1]);
 sim.var = permute(var(sim.theta_hat,0,1,'omitnan'), [2 3 1]);
@@ -239,6 +245,7 @@ sim.cover_rate = permute(mean(sim.cover,1,'omitnan'), [2 3 1]);
 sim.avg_length = permute(mean(sim.length,1,'omitnan'), [2 3 1]);
 sim.med_length = permute(median(sim.length,1,'omitnan'), [2 3 1]);
 sim.overid_reject_rate = mean(sim.overid_reject,1,'omitnan');
+sim.joint_reject_rate = mean(sim.joint_reject,1,'omitnan');
 
 % Display results
 disp('RMSE relative to truth: #prod, vol, sqrt(menu cost)');
@@ -252,3 +259,6 @@ disp(sim.avg_length');
 
 disp('Over-ID rejection rate: avg-abs');
 disp(sim.overid_reject_rate');
+
+disp('Joint parameter test rejection rate:');
+disp(sim.joint_reject_rate');
