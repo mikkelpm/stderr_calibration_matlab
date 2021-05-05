@@ -95,7 +95,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     parse(ip, h, mu, sigma, theta_estim_fct, varargin{:}); % Parse inputs
     
     
-    %% Check inputs
+    %% Handle input types
     
     res = struct;
     
@@ -122,12 +122,6 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         end
     end
     
-    assert(~isempty(res.sigma) || ~isempty(res.V), 'Either sigma or V must be supplied');
-    assert(isempty(res.sigma) || length(res.sigma)==p, 'Dimension of sigma is incorrect');
-    assert(isequal(size(res.W),[p,p]), 'Dimensions of W are incorrect');
-    assert(isempty(res.V) || isequal(size(res.V),[p,p]), 'Dimensions of V are incorrect');
-    assert(ip.Results.zero_thresh>=0, 'zero_thresh must be non-negative');
-    
     res.full_info = ~isempty(res.V); % Full-information estimate? (Requires matrix V.)
     res.eff = ip.Results.eff; % Efficient estimate?
     res.one_step = ip.Results.one_step; % One-step efficient estimate?
@@ -141,14 +135,24 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         res.theta = theta_estim_fct(res.W);
     end
     res.theta = res.theta(:);
-    res.h_theta = h(res.theta);
-    k = length(res.theta); % Number of parameters
     
+    res.h_theta = h(res.theta);
     res.G = G_fct(res.theta); % Moment function Jacobian at initial estimate
-    assert(isequal(size(res.G),[p,k]), 'Jacobian of moment function has incorrect dimensions');
-    res.R = R_fct(res.theta); % Transformation function Jacobian at initial estimate
-    assert(size(res.R,2)==k, 'Jacobian of transformation function has incorrect dimensions');
+    res.R = R_fct(res.theta); % Parameter transformation function Jacobian at initial estimate
+    
+    k = length(res.theta); % Number of parameters
     m = size(res.R,1); % Number of transformations of interest
+    
+    
+    %% Verify input dimensions
+    
+    assert(~isempty(res.sigma) || ~isempty(res.V), 'Either sigma or V must be supplied');
+    assert(isempty(res.sigma) || length(res.sigma)==p, 'Dimension of sigma is incorrect');
+    assert(isequal(size(res.W),[p,p]), 'Dimensions of W are incorrect');
+    assert(isempty(res.V) || isequal(size(res.V),[p,p]), 'Dimensions of V are incorrect');
+    assert(ip.Results.zero_thresh>=0, 'zero_thresh must be non-negative');
+    assert(isequal(size(res.G),[p,k]), 'Jacobian of moment function has incorrect dimensions');
+    assert(size(res.R,2)==k, 'Jacobian of parameter transformation function has incorrect dimensions');
     
     
     %% Updated estimate
