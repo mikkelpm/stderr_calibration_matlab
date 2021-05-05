@@ -29,11 +29,11 @@ addpath('Main', 'Supporting');
 
 % Minimum distance problem (simple example with p=3, k=2)
 h = @(theta) [1 0; 1 1; 0 2]*theta; % Moment function h(theta)
-mu = [1; 2; 2]; 					% Empirically estimated moments
-sigma = [1; 2; 0.5]; 				% SE of empirical moments
+mu = [1; 2; 2];                     % Empirically estimated moments
+sigma = [1; 2; 0.5];                % SE of empirical moments
 theta_estim_fct = @(W) fminunc(@(theta) (mu-h(theta))'*W*(mu-h(theta)), zeros(2,1));
-	% Estimator as a function of weight matrix
-	% (closed form is available in this case, but we ignore that here)
+  % Estimator as a function of weight matrix
+  % (closed form is available in this case, but we ignore that here)
 
 % Compute efficient worst-case estimate and SE
 res = WorstCaseSE(h, mu, sigma, theta_estim_fct);
