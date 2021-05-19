@@ -23,7 +23,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     % - r_theta_se:             SE of r(hat{theta}) (m x 1)
     % - r_theta_varcov:         var-cov matrix of r(hat{theta}) (m x m), if full info
     % - G:                      Jacobian of h(theta) (p x k)
-    % - R:                      Jacobian of r(theta) (m x k)
+    % - lambda:                 Jacobian of r(theta) transposed (k x m)
     % - x_hat:                  loadings of r(hat{theta}) on moments hat{mu} (p x m)
     % - joint:                  structure for joint hypothesis test r(theta)=0
     %                           with the following fields
@@ -70,8 +70,8 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     addParameter(ip, 'G_fct', @(x) ComputeG(h,x), @(x) isa(x, 'function_handle') || isnumeric(x));
         % Function that returns Jacobian (p x k) of h(.) with respect to theta, given theta
         % Default: numerically differentiate h(.)
-    addParameter(ip, 'R_fct', [], @(x) isa(x, 'function_handle') || isnumeric(x));
-        % Function that returns Jacobian (m x k) of r(.) with respect to theta, given theta
+    addParameter(ip, 'lambda_fct', [], @(x) isa(x, 'function_handle') || isnumeric(x));
+        % Function that returns transposed Jacobian (k x m) of r(.) with respect to theta, given theta
         % Default: numerically differentiate r(.)
     addParameter(ip, 'eff', true,  @(x) islogical(x) | isnumeric(x));
         % true: efficient estimation (either full-information or worst-case)
@@ -113,12 +113,12 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         G_fct = @(x) ip.Results.G_fct; % If G_fct is a constant matrix, make it into a function
     end
     
-    R_fct = ip.Results.R_fct;
-    if isnumeric(R_fct)
-        if isempty(R_fct)
-            R_fct = @(x) ComputeG(ip.Results.r,x); % If R_fct is not supplied, use numerical differentiation
+    lambda_fct = ip.Results.lambda_fct;
+    if isnumeric(lambda_fct)
+        if isempty(lambda_fct)
+            lambda_fct = @(x) ComputeG(ip.Results.r,x)'; % If lambda_fct is not supplied, use numerical differentiation
         else
-            R_fct = @(x) ip.Results.R_fct; % If R_fct is a constant matrix, make it into a function
+            lambda_fct = @(x) ip.Results.lambda_fct; % If lambda_fct is a constant matrix, make it into a function
         end
     end
     
@@ -138,10 +138,10 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     
     res.h_theta = h(res.theta);
     res.G = G_fct(res.theta); % Moment function Jacobian at initial estimate
-    res.R = R_fct(res.theta); % Parameter transformation function Jacobian at initial estimate
+    res.lambda = lambda_fct(res.theta); % Parameter transformation function Jacobian at initial estimate
     
     k = length(res.theta); % Number of parameters
-    m = size(res.R,1); % Number of transformations of interest
+    m = size(res.lambda,2); % Number of parameter transformations of interest
     
     
     %% Verify input dimensions
@@ -152,7 +152,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     assert(isempty(res.V) || isequal(size(res.V),[p,p]), 'Dimensions of V are incorrect');
     assert(ip.Results.zero_thresh>=0, 'zero_thresh must be non-negative');
     assert(isequal(size(res.G),[p,k]), 'Jacobian of moment function has incorrect dimensions');
-    assert(size(res.R,2)==k, 'Jacobian of parameter transformation function has incorrect dimensions');
+    assert(size(res.lambda,1)==k, 'Jacobian of parameter transformation function has incorrect dimensions');
     
     
     %% Updated estimate
@@ -188,7 +188,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
                     the_res = WorstCaseSE(h, res.mu, res.sigma, theta_estim_fct, ...
                                           'r', @(x) the_eye(im,:)*ip.Results.r(x), ...
                                           'W', res.W, 'theta', res.theta_init, ...
-                                          'G_fct', res.G, 'R_fct', res.R(im,:), ...
+                                          'G_fct', res.G, 'lambda_fct', res.lambda(:,im), ...
                                           'eff', true, 'one_step', res.one_step, 'overid', false, ...
                                           'zero_thresh', ip.Results.zero_thresh);
                     res.r_theta(im) = the_res.r_theta;
@@ -199,7 +199,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
             else % Otherwise, compute worst-case optimum for the single parameter of interest
                 
                 % Worst-case efficient weighting and SE
-                [res.x_hat, res.r_theta_se] = ComputeWorstCaseOpt_Single(res.sigma, res.G, res.R', ip.Results.zero_thresh);
+                [res.x_hat, res.r_theta_se] = ComputeWorstCaseOpt_Single(res.sigma, res.G, res.lambda, ip.Results.zero_thresh);
                 
                 % Update point estimate
                 if res.one_step % One-step update
@@ -218,7 +218,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         
         if isfield(res, 'theta') % Update Jacobians and moment estimate
             res.G = G_fct(res.theta);
-            res.R = R_fct(res.theta);
+            res.lambda = lambda_fct(res.theta);
             res.h_theta = h(res.theta);
         end
         
@@ -233,14 +233,14 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
     
     if res.full_info % Full information analysis
         
-        res.r_theta_varcov = ComputeCMDAvar(res.G,res.W,res.V,res.R); % Var-cov matrix
+        res.r_theta_varcov = ComputeCMDAvar(res.G,res.W,res.V,res.lambda); % Var-cov matrix
         res.r_theta_se = sqrt(diag(res.r_theta_varcov)); % SE
         
     else % Worst case analysis
         
         if ~res.eff % SE have already been computed above for worst-case efficient estimates
             
-            res.x_hat = res.W*res.G*((res.G'*res.W*res.G)\res.R'); % Moment loadings
+            res.x_hat = res.W*res.G*((res.G'*res.W*res.G)\res.lambda); % Moment loadings
             res.r_theta_se = abs(res.x_hat)'*res.sigma; % SE
             
         end
@@ -255,7 +255,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         res.joint = struct;
         
         % Weight matrix for test statistic
-        aux = res.W*res.G*((res.G'*res.W*res.G)\res.R');
+        aux = res.W*res.G*((res.G'*res.W*res.G)\res.lambda);
         if isempty(ip.Results.S)
             if res.full_info % Full information analysis
                 res.joint.S = inv(res.r_theta_varcov);
@@ -301,7 +301,7 @@ function res = WorstCaseSE(h, mu, sigma, theta_estim_fct, varargin)
         the_res = WorstCaseSE(@(x) x, res.mu, res.sigma, [], ...
                               'r', @(x) res.overid.errors, ...
                               'W', eye(p), 'V', res.V, 'theta', res.mu, ...
-                              'G_fct', eye(p), 'R_fct', M', 'eff', false, ...
+                              'G_fct', eye(p), 'lambda_fct', M, 'eff', false, ...
                               'joint', ip.Results.joint, 'S', res.W, ...
                               'overid', false, ...
                               'zero_thresh', ip.Results.zero_thresh); % Compute SE for M'*hat{mu}

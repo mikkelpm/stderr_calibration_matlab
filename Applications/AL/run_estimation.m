@@ -74,76 +74,82 @@ disp(mean(upc_count.GroupCount));
 [mu_hat, V_hat] = estimate_moments(dat.change, dat.dl_price_center);
 sigma_hat = sqrt(diag(V_hat));
 sample_kurtosis = mu_hat(3)/mu_hat(2)^2;
+V_hat_corr = sigma_hat.\V_hat./sigma_hat'; % Correlation matrix
 
-disp('Fraction of nonzero price changes per week');
-disp(mu_hat(1));
+% Results table
+moment_tab = table;
+moment_tab.estim = mu_hat';
+moment_tab.se = sigma_hat;
+moment_tab.corr = V_hat_corr(:,2:end);
+moment_tab.Properties.RowNames = {'Freq', '2nd', '4th', 'Avg-abs'};
+disp(moment_tab);
 
 disp('Moments of price changes: std, kurt');
 disp([sqrt(mu_hat(2)) sample_kurtosis]);
 
-disp('Moments of absolute price changes: mean');
-disp(mu_hat(4));
-
-disp('Estimated correlation matrix of sample moments');
-disp(sigma_hat.\V_hat./sigma_hat');
 
 
 %% Estimation
 
 disp(' ');
 disp('ESTIMATION AND TESTING');
+disp('Parameters: #products, vol, menu cost');
 
 estim = estimate_model(mu_hat, V_hat);
 
-disp(' ');
-disp('Just-identified estimates: #prod, vol, sqrt(menu cost)');
-disp(estim.justid.theta_hat');
-disp('Full-info SE');
-disp(estim.justid.fullinfo_se');
-disp('SE under independence');
-disp(estim.justid.indep_se');
-disp('Worst-case SE');
-disp(estim.justid.wc_se');
-disp('Ratio of SE: full-info/worst-case');
-disp(estim.justid.fullinfo_se'./estim.justid.wc_se');
-disp('Ratio of SE: independence/worst-case');
-disp(estim.justid.indep_se'./estim.justid.wc_se');
+% Results table
+estim_tab = table;
+estim_tab.justid = [estim.justid.theta';
+                    estim.justid.fullinfo.se';
+                    estim.justid.theta';
+                    estim.justid.indep.se';
+                    estim.justid.theta';
+                    estim.justid.wc.se'];
+estim_tab.overid_test = [estim.overid_test.errors(4)';
+                    estim.overid_test.fullinfo.se(4)';
+                    estim.overid_test.errors(4)';
+                    estim.overid_test.indep.se(4)';
+                    estim.overid_test.errors(4)';
+                    estim.overid_test.wc.se(4)'];
+estim_tab.eff =    [estim.eff.fullinfo.theta';
+                    estim.eff.fullinfo.se';
+                    estim.eff.indep.theta';
+                    estim.eff.indep.se';
+                    estim.eff.wc.theta';
+                    estim.eff.wc.se'];
+estim_tab.Properties.RowNames = {'Full-info estim', 'Full-info SE', 'Indep estim', 'Indep SE', 'WC estim', 'WC SE'};
+disp(estim_tab);
+                
+% Display further results
 
 disp(' ');
-disp('Over-ID test moment errors: avg#changes, std, 4th, avg-abs');
-disp(estim.overid_test.errors');
-disp('Full-info SE');
-disp(estim.overid_test.fullinfo_se');
-disp('SE under independence');
-disp(estim.overid_test.indep_se');
-disp('Worst-case SE');
-disp(estim.overid_test.wc_se');
-disp('Ratio of SE: full-info/worst-case');
-disp(estim.overid_test.fullinfo_se'./estim.overid_test.wc_se');
-disp('Ratio of SE: independence/worst-case');
-disp(estim.overid_test.indep_se'./estim.overid_test.wc_se');
-disp('Full-info p-values');
-disp(2*normcdf(-abs(estim.overid_test.errors./estim.overid_test.fullinfo_se)'));
-disp('p-values under independence');
-disp(2*normcdf(-abs(estim.overid_test.errors./estim.overid_test.indep_se)'));
-disp('Worst-case p-values');
-disp(2*normcdf(-abs(estim.overid_test.errors./estim.overid_test.wc_se)'));
+disp('Just-identified specification:');
+disp('Ratio of SE: worst-case/full-info');
+disp(estim.justid.wc.se'./estim.justid.fullinfo.se');
+disp('Ratio of SE: worst-case/independence');
+disp(estim.justid.wc.se'./estim.justid.indep.se');
 
 disp(' ');
-disp('Worst-case efficient estimates: #prod, vol, sqrt(menu cost)');
-disp(estim.wceff.theta_hat');
-disp('Worst-case SE');
-disp(estim.wceff.se');
-disp('Ratio of worst-case SE: efficient/just-ID');
-disp(estim.wceff.se'./estim.justid.wc_se');
+disp('Over-identification test:');
+disp('Ratio of SE: worst-case/full-info');
+disp(estim.overid_test.wc.se(4)'./estim.overid_test.fullinfo.se(4)');
+disp('Ratio of SE: worst-case/independence');
+disp(estim.overid_test.wc.se(4)'./estim.overid_test.indep.se(4)');
+disp('Full-info p-value');
+disp(2*normcdf(-abs(estim.overid_test.errors(4)./estim.overid_test.fullinfo.se(4))'));
+disp('p-value under independence');
+disp(2*normcdf(-abs(estim.overid_test.errors(4)./estim.overid_test.indep.se(4))'));
+disp('Worst-case p-value');
+disp(2*normcdf(-abs(estim.overid_test.errors(4)./estim.overid_test.wc.se(4))'));
 
 disp(' ');
-disp('Full-information efficient estimates: #prod, vol, sqrt(menu cost)');
-disp(estim.fullinfo.theta_hat');
-disp('SE');
-disp(estim.fullinfo.se');
-disp('Ratio of SE: full-info/worst-case-efficient');
-disp(estim.fullinfo.se'./estim.wceff.se');
+disp('Efficient specification:');
+disp('Ratio of worst-case SE: just-ID/efficient');
+disp(estim.justid.wc.se'./estim.eff.wc.se');
+disp('Ratio of SE: worst-case-efficient/full-info-efficient');
+disp(estim.eff.wc.se'./estim.eff.fullinfo.se');
+disp('Ratio of SE: worst-case-efficient/independence-efficient');
+disp(estim.eff.wc.se'./estim.eff.indep.se');
 
 
 %% Simulation study, using empirically estimated parameters
@@ -152,21 +158,25 @@ if ~run_sim
     return;
 end
 
+disp(' ');
+disp('SIMULATION STUDY');
+
 % Ordering of procedures:
 % 1: just-ID, full-info SE
 % 2: just-ID, SE under independence
 % 3: just-ID, worst-case SE
 % 4: all moments, efficient, full-info SE
-% 5: all moments, worst-case efficient, worst-case SE
+% 5: all moments, efficient, SE under independence
+% 6: all moments, worst-case efficient, worst-case SE
 
 % Preliminaries
-theta_sim = estim.justid.theta_hat; % True parameters in simulations
+theta_sim = estim.justid.theta; % True parameters in simulations
 n_sim = n; % Sample size for simulations
 [mu_sim, y_bar_sim] = moment_function(theta_sim); % True moments
 quantiles_sim = quantile_price(theta_sim(1), y_bar_sim, quant_grid_sim); % Compute quantiles of price change distribution on grid (for quick simulation below)
 
 % Run simulations
-sim_theta_hat = nan(numrep_sim,3,5);
+sim_theta_hat = nan(numrep_sim,3,6);
 sim_se = sim_theta_hat;
 sim_overid_tstat = nan(numrep_sim,3); % Last dimension: 1=efficient, 2=independent, 3=worst-case
 sim_joint_pval = nan(numrep_sim,3);
@@ -198,14 +208,14 @@ parfor i=1:numrep_sim
     end
     
     % Store estimates and SE
-    sim_theta_hat(i,:,:) = [repmat(estim_sim.justid.theta_hat,1,3) estim_sim.fullinfo.theta_hat estim_sim.wceff.theta_hat];
-    sim_se(i,:,:) = [estim_sim.justid.fullinfo_se estim_sim.justid.indep_se estim_sim.justid.wc_se estim_sim.fullinfo.se estim_sim.wceff.se];
+    sim_theta_hat(i,:,:) = [repmat(estim_sim.justid.theta,1,3) estim_sim.eff.fullinfo.theta estim_sim.eff.indep.theta estim_sim.eff.wc.theta];
+    sim_se(i,:,:) = [estim_sim.justid.fullinfo.se estim_sim.justid.indep.se estim_sim.justid.wc.se estim_sim.eff.fullinfo.se estim_sim.eff.indep.se estim_sim.eff.wc.se];
     
     % Compute over-ID t-statistics
-    sim_overid_tstat(i,:) = abs(estim_sim.overid_test.errors(4))./[estim_sim.overid_test.fullinfo_se(4) estim_sim.overid_test.indep_se(4) estim_sim.overid_test.wc_se(4)];
+    sim_overid_tstat(i,:) = abs(estim_sim.overid_test.errors(4))./[estim_sim.overid_test.fullinfo.se(4) estim_sim.overid_test.indep.se(4) estim_sim.overid_test.wc.se(4)];
     
     % Joint test p-values
-    sim_joint_pval(i,:) = [estim_sim.justid.fullinfo_joint_pval estim_sim.justid.indep_joint_pval estim_sim.justid.wc_joint_pval];
+    sim_joint_pval(i,:) = [estim_sim.justid.fullinfo.joint_pval estim_sim.justid.indep.joint_pval estim_sim.justid.wc.joint_pval];
     
     % Print progress
     if mod(i,ceil(numrep_sim/50))==0
@@ -247,18 +257,34 @@ sim.med_length = permute(median(sim.length,1,'omitnan'), [2 3 1]);
 sim.overid_reject_rate = mean(sim.overid_reject,1,'omitnan');
 sim.joint_reject_rate = mean(sim.joint_reject,1,'omitnan');
 
-% Display results
-disp('RMSE relative to truth: #prod, vol, sqrt(menu cost)');
-disp(sqrt(sim.mse')./theta_sim');
+% Results tables
+row_names = {'Full-info', 'Indep', 'WC'};
 
-disp('CI coverage rate: #prod, vol, sqrt(menu cost)');
-disp(sim.cover_rate');
+disp('RMSE relative to true parameters');
+sim_tab.rmse = table;
+sim_tab.rmse.justid = sqrt(sim.mse(:,1:3)')./theta_sim';
+sim_tab.rmse.eff = sqrt(sim.mse(:,4:6)')./theta_sim';
+sim_tab.rmse.Properties.RowNames = row_names;
+disp(sim_tab.rmse);
 
-disp('CI avg. length: #prod, vol, sqrt(menu cost)');
-disp(sim.avg_length');
+disp('CI coverage rate');
+sim_tab.cover = table;
+sim_tab.cover.justid = sim.cover_rate(:,1:3)';
+sim_tab.cover.eff = sim.cover_rate(:,4:6)';
+sim_tab.cover.Properties.RowNames = row_names;
+disp(sim_tab.cover);
+
+disp('CI average length');
+sim_tab.length = table;
+sim_tab.length.justid = sim.avg_length(:,1:3)';
+sim_tab.length.eff = sim.avg_length(:,4:6)';
+sim_tab.length.Properties.RowNames = row_names;
+disp(sim_tab.length);
 
 disp('Over-ID rejection rate: avg-abs');
 disp(sim.overid_reject_rate');
 
 disp('Joint parameter test rejection rate:');
 disp(sim.joint_reject_rate');
+
+clearvars row_names;
