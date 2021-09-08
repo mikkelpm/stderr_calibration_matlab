@@ -35,8 +35,10 @@ function res = fit(obj, varargin)
     
     % Determine weight matrix, if not supplied
     weight_mat = ip.Results.weight_mat;
-    if obj.full_info && (ip.Results.eff || isempty(weight_mat))
+    eff = ip.Results.eff;
+    if obj.full_info && (eff || isempty(weight_mat))
         weight_mat = inv(obj.moment_varcov); % Full-info efficient weight matrix
+        eff = true;
     end
     if isempty(weight_mat)
         weight_mat = diag(1./diag(obj.moment_varcov)); % Ad hoc diagonal weight matrix
@@ -68,7 +70,7 @@ function res = fit(obj, varargin)
     
     %% Efficient estimates
     
-    if ip.Results.eff % Update initial estimate to efficient estimate
+    if eff % Update initial estimate to efficient estimate
         
         if obj.full_info % Full information
             
@@ -95,7 +97,7 @@ function res = fit(obj, varargin)
                 weight_mat = cell(1,estim_num);
                 
                 for i=1:estim_num % Loop over each parameter of interest
-                    the_res = obj.fit('transf', @(x) the_eye(m,:)*transf(x), ...
+                    the_res = obj.fit('transf', @(x) the_eye(i,:)*transf(x), ...
                                       'weight_mat', weight_mat_init, ...
                                       'estim_fct', estim_fct, ...
                                       'eff', true, ...
@@ -118,7 +120,7 @@ function res = fit(obj, varargin)
                 if ip.Results.one_step % One-step estimation
                     estim = obj.get_onestep(moment_fit, [], moment_loadings, estim);
                 else % Full optimization estimation
-                    param_estim = estim_weight(weight_mat);
+                    param_estim = estim_fct(weight_mat);
                     estim = transf(param_estim);
                 end
             end
@@ -138,7 +140,7 @@ function res = fit(obj, varargin)
 	res.moment_jacob = moment_jacob;
     res.moment_loadings = moment_loadings;
 	res.transf_jacob = transf_jacob;
-    res.eff = ip.Results.eff;
+    res.eff = eff;
 	res.estim_num = estim_num;
     
     
@@ -152,7 +154,7 @@ function res = fit(obj, varargin)
         
     else % Limited information
         
-        if ip.Results.eff % SE have already been computed above for worst-case efficient estimates
+        if eff % SE have already been computed above for worst-case efficient estimates
             % Do nothing, since standard errors have already been computed above
         else
             [estim_se, worstcase_varcov] = obj.worstcase_se(moment_loadings);

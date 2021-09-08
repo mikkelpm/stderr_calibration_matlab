@@ -8,7 +8,10 @@ function [cvx_optval, Vtilde, cvx_status] = solve_sdp(obj, A)
     %
     % Requires cvx package to be loaded to solve this semidefinite
     % programming problem.
-
+    
+    assert(exist('cvx_begin', 'file')==2, ...
+           'cvx package is not installed');
+    
     p = obj.moment_num;
     V = obj.moment_varcov;
 

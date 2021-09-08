@@ -45,7 +45,7 @@ function [se, varcov] = worstcase_se(obj, moment_loadings)
     else % General knowledge of var-cov matrix
         
         % Solve semidefinite programming problem
-        vari, varcov = obj.solve_sdp(moment_loadings*moment_loadings');
+        [vari, varcov] = obj.solve_sdp(moment_loadings*moment_loadings');
         se = sqrt(vari);
         
     end
