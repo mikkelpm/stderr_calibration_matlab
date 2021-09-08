@@ -77,8 +77,8 @@ function res = fit(obj, varargin)
             if ip.Results.one_step % One-step estimation
                 param_estim = obj.get_onestep(moment_fit, weight_mat, moment_jacob, param_estim);
                 [estim, transf_jacob, moment_fit, moment_jacob] ...
-                    = obj.estim_update(param_estim, transf, transf_deriv, ...
-                                       [], [], [], []);
+                    = obj.estim_update(param_estim, transf, transf_deriv, [], [], [], []);
+                moment_loadings = get_moment_loadings(moment_jacob, weight_mat, transf_jacob);
             else % Full optimization
                 % Do nothing, since param_estim already contains estimates of interest
             end

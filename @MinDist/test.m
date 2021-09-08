@@ -28,9 +28,6 @@ function res = test(obj, estim_res, varargin)
     
     %% Joint test
     
-    assert(~obj.full_info | estim_res.eff, ...
-           'Full-information joint test requires using the efficient weight matrix');
-    
     % Weight matrix for joint test statistics
     test_weight_mat = ip.Results.test_weight_mat;
     if isempty(test_weight_mat)
@@ -44,7 +41,7 @@ function res = test(obj, estim_res, varargin)
     % Check dimensions
     assert(size(test_weight_mat,1)==estim_res.estim_num & size(test_weight_mat,2)==estim_res.estim_num, ...
            'Dimension of "test_weight_mat" is wrong');
-       
+    
     % Test statistic
     joint_stat = estim_res.estim' * test_weight_mat * estim_res.estim;
     

@@ -37,7 +37,6 @@ function res = overid(obj, estim_res, varargin)
     
     %% Test statistic and p-value
     
-    the_estim_res.eff = true; % Trick test() function below into not throwing an error in full-info case
     the_test_res = obj.test(the_estim_res, 'joint', ip.Results.joint, 'test_weight_mat', estim_res.weight_mat);
     
     res = struct;
