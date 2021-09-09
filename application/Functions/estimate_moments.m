@@ -16,6 +16,7 @@ function [sample_moments, sample_moments_var] = estimate_moments(change, price)
     jacob = [the_eye(1,:); [-sample_moments_uncond(2:end)'/sample_moments_uncond(1)^2, the_eye(2:end,2:end)/sample_moments_uncond(1)]];
         % Jacobian for transformation from unconditional to conditional moments
     sample_moments_var = jacob*sample_moments_uncond_var*jacob'; % Var-cov matrix of conditional moments
+    sample_moments_var = 0.5*(sample_moments_var+sample_moments_var'); % Ensure exact symmetry
     
 
 end

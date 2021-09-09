@@ -1,7 +1,6 @@
 clear all;
-addpath('Functions');
-addpath('../../Main');
-addpath('../../Supporting');
+addpath('functions');
+addpath('../');
 
 % Application based on Alvarez & Lippi (ECMA 2014)
 
@@ -9,7 +8,8 @@ addpath('../../Supporting');
 %% Settings
 
 % Data
-dat_file = 'wber.csv';  % CSV file with prices by store, week, and UPC (download from: https://www.chicagobooth.edu/research/kilts/datasets/dominicks)
+dat_file = 'wber.csv';  % CSV file with prices by store, week, and UPC
+                        % (download from https://www.chicagobooth.edu/research/kilts/datasets/dominicks under "Category Files")
 select_store = 122;     % Single store ID to keep for the data analysis
 drop_quantile = 0.99;   % Drop absolute price changes above this quantile
 
@@ -99,57 +99,57 @@ estim = estimate_model(mu_hat, V_hat);
 
 % Results table
 estim_tab = table;
-estim_tab.justid = [estim.justid.theta';
-                    estim.justid.fullinfo.se';
-                    estim.justid.theta';
-                    estim.justid.indep.se';
-                    estim.justid.theta';
-                    estim.justid.wc.se'];
-estim_tab.overid_test = [estim.overid_test.errors(4)';
-                    estim.overid_test.fullinfo.se(4)';
-                    estim.overid_test.errors(4)';
-                    estim.overid_test.indep.se(4)';
-                    estim.overid_test.errors(4)';
-                    estim.overid_test.wc.se(4)'];
-estim_tab.eff =    [estim.eff.fullinfo.theta';
-                    estim.eff.fullinfo.se';
-                    estim.eff.indep.theta';
-                    estim.eff.indep.se';
-                    estim.eff.wc.theta';
-                    estim.eff.wc.se'];
-estim_tab.Properties.RowNames = {'Full-info estim', 'Full-info SE', 'Indep estim', 'Indep SE', 'WC estim', 'WC SE'};
+estim_tab.justid = [estim.fullinfo.justid.theta';
+                    estim.fullinfo.justid.se';
+                    estim.indep.justid.theta';
+                    estim.indep.justid.se';
+                    estim.liminfo.justid.theta';
+                    estim.liminfo.justid.se'];
+estim_tab.overid_test = [estim.fullinfo.overid_test.errors(4)';
+                    estim.fullinfo.overid_test.se(4)';
+                    estim.indep.overid_test.errors(4)';
+                    estim.indep.overid_test.se(4)';
+                    estim.liminfo.overid_test.errors(4)';
+                    estim.liminfo.overid_test.se(4)'];
+estim_tab.eff =    [estim.fullinfo.eff.theta';
+                    estim.fullinfo.eff.se';
+                    estim.indep.eff.theta';
+                    estim.indep.eff.se';
+                    estim.liminfo.eff.theta';
+                    estim.liminfo.eff.se'];
+estim_tab.Properties.RowNames = {'Full-info estim', 'Full-info SE', 'Indep estim', 'Indep SE', 'Lim-info estim', 'Lim-info SE'};
 disp(estim_tab);
                 
 % Display further results
 
 disp(' ');
 disp('Just-identified specification:');
-disp('Ratio of SE: worst-case/full-info');
-disp(estim.justid.wc.se'./estim.justid.fullinfo.se');
-disp('Ratio of SE: worst-case/independence');
-disp(estim.justid.wc.se'./estim.justid.indep.se');
+disp('Ratio of SE: lim-info/full-info');
+disp(estim.liminfo.justid.se'./estim.fullinfo.justid.se');
+disp('Ratio of SE: lim-info/independence');
+disp(estim.liminfo.justid.se'./estim.indep.justid.se');
 
 disp(' ');
 disp('Over-identification test:');
-disp('Ratio of SE: worst-case/full-info');
-disp(estim.overid_test.wc.se(4)'./estim.overid_test.fullinfo.se(4)');
-disp('Ratio of SE: worst-case/independence');
-disp(estim.overid_test.wc.se(4)'./estim.overid_test.indep.se(4)');
+disp('Ratio of SE: lim-info/full-info');
+disp(estim.liminfo.overid_test.se(4)'./estim.fullinfo.overid_test.se(4)');
+disp('Ratio of SE: lim-info/independence');
+disp(estim.liminfo.overid_test.se(4)'./estim.indep.overid_test.se(4)');
 disp('Full-info p-value');
-disp(2*normcdf(-abs(estim.overid_test.errors(4)./estim.overid_test.fullinfo.se(4))'));
+disp(2*normcdf(-abs(estim.fullinfo.overid_test.errors(4)./estim.fullinfo.overid_test.se(4))'));
 disp('p-value under independence');
-disp(2*normcdf(-abs(estim.overid_test.errors(4)./estim.overid_test.indep.se(4))'));
+disp(2*normcdf(-abs(estim.indep.overid_test.errors(4)./estim.indep.overid_test.se(4))'));
 disp('Worst-case p-value');
-disp(2*normcdf(-abs(estim.overid_test.errors(4)./estim.overid_test.wc.se(4))'));
+disp(2*normcdf(-abs(estim.liminfo.overid_test.errors(4)./estim.liminfo.overid_test.se(4))'));
 
 disp(' ');
 disp('Efficient specification:');
-disp('Ratio of worst-case SE: just-ID/efficient');
-disp(estim.justid.wc.se'./estim.eff.wc.se');
-disp('Ratio of SE: worst-case-efficient/full-info-efficient');
-disp(estim.eff.wc.se'./estim.eff.fullinfo.se');
-disp('Ratio of SE: worst-case-efficient/independence-efficient');
-disp(estim.eff.wc.se'./estim.eff.indep.se');
+disp('Ratio of lim-info SE: just-ID/efficient');
+disp(estim.liminfo.justid.se'./estim.liminfo.eff.se');
+disp('Ratio of SE: lim-info-efficient/full-info-efficient');
+disp(estim.liminfo.eff.se'./estim.fullinfo.eff.se');
+disp('Ratio of SE: lim-info-efficient/independence-efficient');
+disp(estim.liminfo.eff.se'./estim.indep.eff.se');
 
 
 %% Simulation study, using empirically estimated parameters
@@ -164,13 +164,13 @@ disp('SIMULATION STUDY');
 % Ordering of procedures:
 % 1: just-ID, full-info SE
 % 2: just-ID, SE under independence
-% 3: just-ID, worst-case SE
+% 3: just-ID, lim-info SE
 % 4: all moments, efficient, full-info SE
 % 5: all moments, efficient, SE under independence
-% 6: all moments, worst-case efficient, worst-case SE
+% 6: all moments, lim-info efficient, lim-info SE
 
 % Preliminaries
-theta_sim = estim.justid.theta; % True parameters in simulations
+theta_sim = estim.fullinfo.justid.theta; % True parameters in simulations
 n_sim = n; % Sample size for simulations
 [mu_sim, y_bar_sim] = moment_function(theta_sim); % True moments
 quantiles_sim = quantile_price(theta_sim(1), y_bar_sim, quant_grid_sim); % Compute quantiles of price change distribution on grid (for quick simulation below)
@@ -178,7 +178,7 @@ quantiles_sim = quantile_price(theta_sim(1), y_bar_sim, quant_grid_sim); % Compu
 % Run simulations
 sim_theta_hat = nan(numrep_sim,3,6);
 sim_se = sim_theta_hat;
-sim_overid_tstat = nan(numrep_sim,3); % Last dimension: 1=efficient, 2=independent, 3=worst-case
+sim_overid_tstat = nan(numrep_sim,3); % Last dimension: 1=efficient, 2=independent, 3=lim-info
 sim_joint_pval = nan(numrep_sim,3);
 
 rng(rng_seed_sim, 'twister');
@@ -208,14 +208,14 @@ parfor i=1:numrep_sim
     end
     
     % Store estimates and SE
-    sim_theta_hat(i,:,:) = [repmat(estim_sim.justid.theta,1,3) estim_sim.eff.fullinfo.theta estim_sim.eff.indep.theta estim_sim.eff.wc.theta];
-    sim_se(i,:,:) = [estim_sim.justid.fullinfo.se estim_sim.justid.indep.se estim_sim.justid.wc.se estim_sim.eff.fullinfo.se estim_sim.eff.indep.se estim_sim.eff.wc.se];
+    sim_theta_hat(i,:,:) = [repmat(estim_sim.fullinfo.justid.theta,1,3) estim_sim.fullinfo.eff.theta estim_sim.indep.eff.theta estim_sim.liminfo.eff.theta];
+    sim_se(i,:,:) = [estim_sim.fullinfo.justid.se estim_sim.indep.justid.se estim_sim.liminfo.justid.se estim_sim.fullinfo.eff.se estim_sim.indep.eff.se estim_sim.liminfo.eff.se];
     
     % Compute over-ID t-statistics
-    sim_overid_tstat(i,:) = abs(estim_sim.overid_test.errors(4))./[estim_sim.overid_test.fullinfo.se(4) estim_sim.overid_test.indep.se(4) estim_sim.overid_test.wc.se(4)];
+    sim_overid_tstat(i,:) = abs(estim_sim.fullinfo.overid_test.errors(4))./[estim_sim.fullinfo.overid_test.se(4) estim_sim.indep.overid_test.se(4) estim_sim.liminfo.overid_test.se(4)];
     
     % Joint test p-values
-    sim_joint_pval(i,:) = [estim_sim.justid.fullinfo.joint_pval estim_sim.justid.indep.joint_pval estim_sim.justid.wc.joint_pval];
+    sim_joint_pval(i,:) = [estim_sim.fullinfo.justid.joint_pval estim_sim.indep.justid.joint_pval estim_sim.liminfo.justid.joint_pval];
     
     % Print progress
     if mod(i,ceil(numrep_sim/50))==0
@@ -258,7 +258,7 @@ sim.overid_reject_rate = mean(sim.overid_reject,1,'omitnan');
 sim.joint_reject_rate = mean(sim.joint_reject,1,'omitnan');
 
 % Results tables
-row_names = {'Full-info', 'Indep', 'WC'};
+row_names = {'Full-info', 'Indep', 'Lim-info'};
 
 disp('RMSE relative to true parameters');
 sim_tab.rmse = table;
