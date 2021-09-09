@@ -15,9 +15,9 @@ Other versions: [Python](https://github.com/mikkelpm/stderr_calibration_python)
 
 - [example.m](example.m): Simple example illustrating the main functionality of the package step by step
 
-- [@MinDist](@Mindist): Matlab class for minimum distance estimation, standard errors, and testing
+- [@MinDist](@MinDist): Matlab class for minimum distance estimation, standard errors, and testing
 
-- [application/run_all.m](application/run_all.m): Application and simulation study based on [Alvarez & Lippi (2014)(http://dx.doi.org/10.3982/ECTA10662), see top of file for data requirements
+- [application/run_all.m](application/run_all.m): Application and simulation study based on [Alvarez & Lippi (2014)](http://dx.doi.org/10.3982/ECTA10662), see top of file for data requirements
 
 - [tests](tests): Unit tests
 
