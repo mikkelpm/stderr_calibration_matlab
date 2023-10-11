@@ -18,7 +18,7 @@ function [mu, y_bar] = moment_function(theta)
     mu(2) = y_bar/num_prod;
     mu(3) = 3*num_prod/(num_prod+2)*mu(2)^2;
     
-    % Mean and variance of absolute price changes (Proposition 6)
+    % Mean of absolute price changes (Proposition 6)
     nu = (num_prod-1)/2;
     aux = nu*beta(nu,0.5);
     mu(4) = sqrt(y_bar)/aux;
