@@ -5,9 +5,9 @@ Matlab function that computes worst-case standard errors (SE) for minimum distan
 The computed worst-case SE for the estimated parameters are sharp upper bounds on the true SE (which depend on the unknown moment correlation structure). For over-identified models, the package also computes the efficient moment selection that minimizes the worst-case SE. Additionally, the package can carry out tests of parameter restrictions or over-identifying restrictions.
 
 **Reference:**
-Cocci, Matthew D., and Mikkel Plagborg-Møller (2021), "Standard Errors for Calibrated Parameters", https://scholar.princeton.edu/mikkelpm/calibration
+Cocci, Matthew D., and Mikkel Plagborg-Møller (2023), "Standard Errors for Calibrated Parameters", [arXiv:2109.08109](https://arxiv.org/abs/2109.08109)
 
-Tested in: Matlab R2021a on Windows 10 PC (64-bit)
+Tested in: Matlab R2023a on Windows 10 PC (64-bit)
 
 Other versions: [Python](https://github.com/mikkelpm/stderr_calibration_python)
 
