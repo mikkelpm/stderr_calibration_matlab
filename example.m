@@ -18,7 +18,7 @@ clear all;
 
 % To compute standard errors for the estimated parameters, test hypotheses,
 % and compute the efficient weight matrix hat{W}, we use the formulas in
-% Cocci & Plagborg-Møller (2021) (https://scholar.princeton.edu/mikkelpm/calibration),
+% Cocci & Plagborg-Møller (2023) (https://arxiv.org/abs/2109.08109),
 % which do not require knowledge of the correlation structure of the empirical moments.
 
 
