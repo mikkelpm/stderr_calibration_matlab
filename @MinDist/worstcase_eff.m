@@ -26,8 +26,8 @@ function [se, moment_loadings, weight_mat_new] = worstcase_eff(obj, moment_jacob
         else
             weight_mat_new = eye(p);
         end
-        weight_mat_new(sort_inds(p-k+1:end),:) = 0;
-        weight_mat_new(:,sort_inds(p-k+1:end)) = 0;
+        weight_mat_new(sort_inds(1:p-k),:) = 0;
+        weight_mat_new(:,sort_inds(1:p-k)) = 0;
         
     else % General case
         

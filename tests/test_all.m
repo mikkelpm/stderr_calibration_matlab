@@ -55,7 +55,7 @@ assert(all(res_eff.estim_se<=res.estim_se));
 
 % Test that full optimization gives the same as one-step (due to linear moment function)
 res2_eff = obj.fit('opt_init', zeros(size(theta)), 'one_step', false);
-assert(norm(res_eff.estim - res2_eff.estim)<tol);
+assert(norm(res_eff.estim - res2_eff.estim)<1e-5); % Full optimization is only accurate up to fminunc's default tolerance
 assert(norm(res_eff.estim_se - res2_eff.estim_se)<tol);
 
 % Full information
